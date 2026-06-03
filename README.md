@@ -163,9 +163,14 @@ Your runner must:
 
 | Command | Description |
 |---------|-------------|
-| `/harness-on` | Start the harness loop |
-| `/harness-on --force` | Start fresh, ignoring cached results |
-| `/harness-off` | Cancel the active loop |
+| `/harness-on` | Start the harness loop. If a loop is already active, emits an error telling you to use `--resume` or `--restart`. |
+| `/harness-on --resume` | Rebind an existing loop into the current session. Re-runs the current gate from iteration 0 (gates are idempotent). |
+| `/harness-on --restart` | Wipe existing state and start fresh from the first gate. |
+| `/harness-on --force` | Start fresh, ignoring cached gate results. |
+| `/harness-on --epic [path]` | Start epic mode. See [Epic Mode](#epic-mode-v306). |
+| `/harness-on --epic --resume` | Resume preserved epic at the current story. |
+| `/harness-off` | Stop the active loop. Preserves epic state for `--resume`. |
+| `/harness-off --clean` | Stop and wipe all state, including epic. |
 
 ## How to Adopt in Your Project
 

@@ -19,10 +19,6 @@ export interface HarnessOnContext {
   getMessageCount(): number;
   injectMessage(text: string): Promise<void>;
   showToast(message: string, variant: "info" | "warning" | "error"): void;
-  askQuestion(options: {
-    question: string;
-    choices: string[];
-  }): Promise<string>;
 }
 
 export interface HarnessOnOptions {
@@ -36,6 +32,7 @@ export interface HarnessOnOptions {
   epic?: boolean;
   epicPath?: string;
   resume?: boolean;
+  restart?: boolean;
 }
 
 function parseCliArgs(args: string[]): HarnessOnOptions {
@@ -64,6 +61,8 @@ function parseCliArgs(args: string[]): HarnessOnOptions {
       options.epicPath = arg.slice(7);
     } else if (arg === "--resume") {
       options.resume = true;
+    } else if (arg === "--restart") {
+      options.restart = true;
     }
   }
 
@@ -266,46 +265,48 @@ export async function handleHarnessOn(
     const openingPrompt = buildOpeningPrompt(config, options.featureId ?? null);
     await ctx.injectMessage(openingPrompt);
   } catch (e) {
-    if (e instanceof LoopAlreadyActiveError) {
-      const answer = await ctx.askQuestion({
-        question: `Loop already active in session ${e.existingSessionId} at gate "${e.existingGate}". What would you like to do?`,
-        choices: ["Resume", "Cancel and restart", "Abort"],
-      });
-
-      if (answer === "Resume") {
-        controller.rebindSession(ctx.sessionId);
-        ctx.showToast(
-          `🔄 Resuming loop at gate "${e.existingGate}"`,
-          "info"
-        );
-      } else if (answer === "Cancel and restart") {
-        controller.cancelLoop();
-
-        const messageCount = ctx.getMessageCount();
-        controller.startLoop(
-          ctx.sessionId,
-          config,
-          options.featureId,
-          options.issueNumber,
-          options.story,
-          messageCount
-        );
-
-        ctx.showToast(
-          `🚀 Harness loop restarted with ${config.gates.length} gates`,
-          "info"
-        );
-
-        const openingPrompt = buildOpeningPrompt(
-          config,
-          options.featureId ?? null
-        );
-        await ctx.injectMessage(openingPrompt);
-      } else {
-        ctx.showToast("❌ Loop start aborted", "warning");
-      }
-    } else {
+    if (!(e instanceof LoopAlreadyActiveError)) {
       throw e;
     }
+
+    if (options.resume) {
+      controller.rebindSession(ctx.sessionId);
+      ctx.showToast(
+        `🔄 Resuming loop at gate "${e.existingGate}" (session rebound)`,
+        "info"
+      );
+      return;
+    }
+
+    if (options.restart) {
+      controller.cancelLoop();
+
+      const messageCount = ctx.getMessageCount();
+      controller.startLoop(
+        ctx.sessionId,
+        config,
+        options.featureId,
+        options.issueNumber,
+        options.story,
+        messageCount
+      );
+
+      ctx.showToast(
+        `🚀 Harness loop restarted with ${config.gates.length} gates`,
+        "info"
+      );
+
+      const openingPrompt = buildOpeningPrompt(
+        config,
+        options.featureId ?? null
+      );
+      await ctx.injectMessage(openingPrompt);
+      return;
+    }
+
+    ctx.showToast(
+      `❌ Loop already active in session ${e.existingSessionId} at gate "${e.existingGate}". Run /harness-on --resume to continue, or /harness-on --restart to wipe and start fresh.`,
+      "error"
+    );
   }
 }
