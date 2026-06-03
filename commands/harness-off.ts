@@ -7,7 +7,21 @@ export interface HarnessOffContext {
   cancelBackgroundTask?(taskId: string): Promise<void>;
 }
 
-export async function handleHarnessOff(ctx: HarnessOffContext): Promise<void> {
+function parseOffArgs(args: string[]): { clean?: boolean } {
+  const opts: { clean?: boolean } = {};
+  for (const arg of args) {
+    if (arg === "--clean") {
+      opts.clean = true;
+    }
+  }
+  return opts;
+}
+
+export async function handleHarnessOff(
+  ctx: HarnessOffContext,
+  args: string[] = []
+): Promise<void> {
+  const opts = parseOffArgs(args);
   const statePath = getStatePath(ctx.projectRoot);
   const state = readState(statePath);
 
@@ -31,7 +45,7 @@ export async function handleHarnessOff(ctx: HarnessOffContext): Promise<void> {
   }
 
   const controller = createLoopStateController(ctx.projectRoot);
-  controller.cancelLoop();
+  controller.cancelLoop(opts.clean ? { clean: true } : undefined);
 
   ctx.showToast(
     `🛑 Harness loop cancelled at gate "${state.loop.current_gate}" (iteration ${state.loop.gate_iteration})`,

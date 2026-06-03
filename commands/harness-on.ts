@@ -5,6 +5,10 @@ import {
 } from "../loop-state-controller.js";
 import { validateAllGateInstructions } from "../gate-instructions-resolver.js";
 import { buildOpeningPrompt } from "../templates/opening-prompt.js";
+import { buildEpicStoryPrompt } from "../templates/epic-story-prompt.js";
+import { createBacklogAdapter } from "../backlog-adapter.js";
+import { topologicalSort } from "../topological-sort.js";
+import { readState, getStatePath } from "../storage.js";
 import type { ConfigOverrides } from "../types.js";
 import { existsSync, accessSync, constants } from "node:fs";
 import { join } from "node:path";
@@ -29,6 +33,9 @@ export interface HarnessOnOptions {
   featureId?: string;
   issueNumber?: number;
   story?: string;
+  epic?: boolean;
+  epicPath?: string;
+  resume?: boolean;
 }
 
 function parseCliArgs(args: string[]): HarnessOnOptions {
@@ -50,6 +57,13 @@ function parseCliArgs(args: string[]): HarnessOnOptions {
       options.issueNumber = parseInt(arg.slice(8), 10);
     } else if (arg.startsWith("--story=")) {
       options.story = arg.slice(8);
+    } else if (arg === "--epic") {
+      options.epic = true;
+    } else if (arg.startsWith("--epic=")) {
+      options.epic = true;
+      options.epicPath = arg.slice(7);
+    } else if (arg === "--resume") {
+      options.resume = true;
     }
   }
 
@@ -125,6 +139,112 @@ export async function handleHarnessOn(
   }
 
   const controller = createLoopStateController(ctx.projectRoot);
+
+  if (options.epic) {
+    if (!config.epic) {
+      ctx.showToast(
+        "❌ Epic config block required for --epic. Add an 'epic' field to harness.config.json.",
+        "error"
+      );
+      return;
+    }
+
+    const epicConfig = { ...config.epic };
+    if (options.epicPath) {
+      epicConfig.backlog_file = options.epicPath;
+    }
+
+    if (options.resume) {
+      const statePath = getStatePath(ctx.projectRoot);
+      const existingState = readState(statePath);
+
+      if (!existingState?.loop.epic) {
+        ctx.showToast(
+          "❌ Cannot resume: no preserved epic state. Run /harness-on --epic to start fresh.",
+          "error"
+        );
+        return;
+      }
+
+      if (existingState.loop.epic.current_story_id !== null) {
+        const storyInBacklog = existingState.loop.epic.backlog_snapshot.stories.find(
+          (s) => s.id === existingState.loop.epic!.current_story_id
+        );
+        if (!storyInBacklog) {
+          ctx.showToast(
+            `❌ Cannot resume: current story "${existingState.loop.epic.current_story_id}" is not in the preserved backlog`,
+            "error"
+          );
+          return;
+        }
+      }
+
+      existingState.loop.gate_iteration = 0;
+      existingState.loop.active = true;
+      existingState.loop.session_id = ctx.sessionId;
+
+      const { writeState } = await import("../storage.js");
+      writeState(statePath, existingState);
+
+      const currentStoryId = existingState.loop.epic.current_story_id;
+      const currentGate = existingState.loop.current_gate;
+      ctx.showToast(
+        `▶️ Resuming epic "${existingState.loop.epic.epic_id}" at story "${currentStoryId}" gate "${currentGate}".`,
+        "info"
+      );
+      if (currentStoryId) {
+        await ctx.injectMessage(
+          buildEpicStoryPrompt(currentStoryId, existingState)
+        );
+      }
+      return;
+    }
+
+    let backlog;
+    try {
+      const adapter = createBacklogAdapter(epicConfig);
+      backlog = await adapter.load();
+      topologicalSort(backlog.stories);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      ctx.showToast(`❌ ${message}`, "error");
+      return;
+    }
+
+    try {
+      const messageCount = ctx.getMessageCount();
+
+      const state = controller.startLoop(
+        ctx.sessionId,
+        config,
+        undefined,
+        undefined,
+        undefined,
+        messageCount,
+        backlog
+      );
+
+      const epic = state.loop.epic!;
+      ctx.showToast(
+        `🚀 Epic "${epic.epic_id}" started: ${epic.backlog_snapshot.stories.length} stories. First: "${epic.current_story_id}".`,
+        "info"
+      );
+
+      await ctx.injectMessage(
+        buildEpicStoryPrompt(epic.current_story_id!, state)
+      );
+    } catch (e) {
+      if (e instanceof LoopAlreadyActiveError) {
+        ctx.showToast(
+          `❌ Loop already active in session ${e.existingSessionId}. Run /harness-off first.`,
+          "error"
+        );
+      } else {
+        throw e;
+      }
+    }
+    return;
+  }
 
   try {
     const messageCount = ctx.getMessageCount();

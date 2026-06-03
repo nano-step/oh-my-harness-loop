@@ -85,7 +85,7 @@ describe("clearLoopBlock", () => {
     expect(existsSync(statePath)).toBe(false);
   });
 
-  it("throws StateCorruptionError when clearing a state with gates (schema enforcement)", () => {
+  it("clears an active loop and preserves config_snapshot", () => {
     const { dir, statePath } = makeStateFile();
     dirs.push(dir);
 
@@ -101,7 +101,10 @@ describe("clearLoopBlock", () => {
     state.loop.config_snapshot.runner_path = "./run.sh";
     writeState(statePath, state);
 
-    expect(() => clearLoopBlock(statePath)).toThrow(StateCorruptionError);
+    expect(() => clearLoopBlock(statePath)).not.toThrow();
+    const cleared = readState(statePath);
+    expect(cleared!.loop.active).toBe(false);
+    expect(cleared!.loop.config_snapshot.gates).toEqual(["pre-work"]);
   });
 });
 

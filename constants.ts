@@ -24,6 +24,9 @@ export const EXIT_CODE_MAP: Record<string, number> = {
   ERROR: 5,
 };
 
+export const DEFAULT_EPIC_BACKLOG_PATH = ".opencode/harness.epic.json";
+export const DEFAULT_MAX_ITERATIONS_PER_EPIC = 500;
+
 export const DEFAULT_STATE_FILE_PATH = ".opencode/harness-loop.local.json";
 export const DEFAULT_CONFIG_FILE_PATH = ".opencode/harness.config.json";
 export const OVERRIDE_CONFIG_FILE_PATH = ".opencode/harness.override.json";

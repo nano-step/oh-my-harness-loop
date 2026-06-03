@@ -7,7 +7,6 @@ import {
   createLoopStateController,
   LoopAlreadyActiveError,
 } from "../loop-state-controller.js";
-import { StateCorruptionError } from "../types.js";
 import type { HarnessConfig } from "../types.js";
 
 function makeTempRoot(): string {
@@ -163,7 +162,7 @@ describe("cancelLoop", () => {
     expect(ctrl.isActive()).toBe(false);
   });
 
-  it("throws StateCorruptionError when clearing an active loop (clearLoopBlock schema enforcement)", () => {
+  it("deactivates loop and preserves config_snapshot on cancel", () => {
     const root = makeTempRoot();
     roots.push(root);
     const ctrl = createLoopStateController(root);
@@ -172,6 +171,9 @@ describe("cancelLoop", () => {
     ctrl.startLoop("sess-001", config);
     expect(ctrl.isActive()).toBe(true);
 
-    expect(() => ctrl.cancelLoop()).toThrow(StateCorruptionError);
+    expect(() => ctrl.cancelLoop()).not.toThrow();
+    expect(ctrl.isActive()).toBe(false);
+    const state = ctrl.getState();
+    expect(state!.loop.config_snapshot.gates).toEqual(config.gates);
   });
 });

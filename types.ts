@@ -65,6 +65,84 @@ export const ParallelWatcherEntrySchema = z.object({
 });
 
 // =============================================================================
+// Epic Mode Types (from epic-mode spec)
+// =============================================================================
+
+/**
+ * Status of a story within an epic backlog.
+ */
+export const StoryStatusSchema = z.enum([
+  "pending",
+  "in_progress",
+  "completed",
+  "failed",
+  "blocked",
+  "skipped",
+]);
+export type StoryStatus = z.infer<typeof StoryStatusSchema>;
+
+/**
+ * A single story in the epic backlog.
+ */
+export const BacklogStorySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  feature_id: z.string().optional(),
+  issue_number: z.number().optional(),
+  story: z.string().optional(),
+  depends_on: z.array(z.string()).default([]),
+});
+export type BacklogStory = z.infer<typeof BacklogStorySchema>;
+
+/**
+ * Full epic backlog (loaded from file or adapter).
+ */
+export const BacklogSchema = z.object({
+  epic_id: z.string(),
+  title: z.string().optional(),
+  stories: z.array(BacklogStorySchema).min(1),
+});
+export type Backlog = z.infer<typeof BacklogSchema>;
+
+/**
+ * Progress entry for a single story in an epic.
+ */
+export const EpicProgressEntrySchema = z.object({
+  story_id: z.string(),
+  status: StoryStatusSchema,
+  started_at: z.string().optional(),
+  completed_at: z.string().optional(),
+  gate_reached: z.string().optional(),
+});
+export type EpicProgressEntry = z.infer<typeof EpicProgressEntrySchema>;
+
+/**
+ * Epic-level state stored inside LoopMeta when epic mode is active.
+ */
+export const EpicMetaSchema = z.object({
+  enabled: z.literal(true),
+  epic_id: z.string(),
+  current_story_id: z.string().nullable(),
+  story_progress: z.array(EpicProgressEntrySchema).default([]),
+  backlog_snapshot: BacklogSchema,
+  failure_policy: z.enum(["ask"]),
+  max_iterations_per_epic: z.number().default(500),
+  epic_iteration_total: z.number().default(0),
+});
+export type EpicMeta = z.infer<typeof EpicMetaSchema>;
+
+/**
+ * Epic configuration in harness.config.json.
+ */
+export const EpicConfigSchema = z.object({
+  backlog_source: z.enum(["file"]).default("file"),
+  backlog_file: z.string().default(".opencode/harness.epic.json"),
+  failure_policy: z.enum(["ask"]).default("ask"),
+  max_iterations_per_epic: z.number().default(500),
+});
+export type EpicConfig = z.infer<typeof EpicConfigSchema>;
+
+// =============================================================================
 // Configuration Types (from harness-loop-config spec)
 // =============================================================================
 
@@ -133,6 +211,7 @@ export const HarnessConfigSchema = z
     phase_hooks: z.record(z.string(), PhaseHookSchema).default({}),
     strict_instructions: z.boolean().default(false),
     async_heartbeats: z.boolean().default(true),
+    epic: EpicConfigSchema.optional(),
   })
   .strict();
 export type HarnessConfig = z.infer<typeof HarnessConfigSchema>;
@@ -177,6 +256,7 @@ export interface LoopMeta {
   verification_pending: boolean;
   parallel_watchers: Record<string, ParallelWatcherEntry>;
   message_count_at_start: number;
+  epic?: EpicMeta;
 }
 
 /**
@@ -211,6 +291,7 @@ export const LoopMetaSchema = z.object({
   verification_pending: z.boolean(),
   parallel_watchers: z.record(z.string(), ParallelWatcherEntrySchema),
   message_count_at_start: z.number(),
+  epic: EpicMetaSchema.optional(),
 });
 
 export const CheckpointEntrySchema = z.object({

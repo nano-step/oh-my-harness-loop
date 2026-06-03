@@ -109,6 +109,63 @@ The `[skip-release]` suffix in commit messages is **NOT** a substitute for these
 
 ---
 
+## Epic Mode
+
+Available since v306. Activates **autonomous multi-story execution**: one `/harness-on --epic` invocation drives every story in a backlog through the full gate cycle until the queue is drained or a story fails.
+
+### When to use
+
+- BMAD has produced N stories across M epics and you want hands-off shipping
+- You have a backlog file (`.opencode/harness.epic.json`) or want to consume from another source
+- All stories follow the same gate cycle (single config)
+
+### Activation
+
+Add an `epic` block to `harness.config.json`:
+
+```json
+{
+  "epic": {
+    "backlog_source": "file",
+    "backlog_file": ".opencode/harness.epic.json",
+    "failure_policy": "ask",
+    "max_iterations_per_epic": 500
+  }
+}
+```
+
+Run `/harness-on --epic` (or `/harness-on --epic=./custom-backlog.json`).
+
+### Interaction with Auto-merge Policy
+
+Each story PR is governed by the **same** 6-precondition Auto-merge Policy. There is no "epic-wide" auto-merge — every PR earns its merge independently. If a PR fails any precondition, the epic pauses (per `failure_policy: "ask"`) and waits for `/harness-on --epic --resume`.
+
+### `/harness-off` in epic context
+
+- `/harness-off` — preserves epic state (`loop.epic` block stays). Resume via `/harness-on --epic --resume`.
+- `/harness-off --clean` — full wipe (legacy v305 behavior).
+
+### Iteration caps
+
+Three counters protect against runaway cost:
+
+| Counter | Default | Resets when |
+|---------|---------|-------------|
+| `max_iterations_per_gate` | 10 | New story starts (per-story reset) |
+| `max_total_iterations` | 100 | Never (loop lifetime — but resets via `/harness-off`) |
+| `max_iterations_per_epic` | 500 | New epic starts |
+
+Failure policy `ask` pauses the epic when any cap is hit.
+
+### Out of scope (Phase 2+)
+
+- GitHub Issues / Projects v2 adapters (Phase 2)
+- `failure_policy: "skip" | "abort"` (Phase 2)
+- Parallel stories via worktrees (Phase 3)
+- `/harness-status`, `/harness-skip`, `/harness-retry` commands (Phase 2)
+
+---
+
 ## Forbidden Practices
 
 - No `as any`, `@ts-ignore` — type errors must be fixed
