@@ -77,7 +77,6 @@ function buildHarnessOnContext(
         body: { message, variant },
       });
     },
-    askQuestion: async (_options) => "abort",
   };
 }
 

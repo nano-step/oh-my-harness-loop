@@ -260,8 +260,11 @@ Then `/harness-on --epic` drives a full backlog of stories autonomously.
 - Probably hit `next-ready` PASS on first iteration. With the stub, that's expected — every gate is no-op PASS.
 - Check toast for "🎉 Harness loop complete!". That means it worked.
 
-### State file complains "loop already active"
-- Stale state from a prior crash. Run `/harness-off --clean` to wipe.
+### "Loop already active in session X at gate Y"
+- The state file from a previous session is still active. You have three options:
+  - **Resume**: `/harness-on --resume` — rebinds the existing loop into the current session, re-runs the current gate from iteration 0
+  - **Restart**: `/harness-on --restart` — wipes the state and starts fresh from the first gate
+  - **Manual wipe**: `/harness-off --clean` then `/harness-on`
 
 ### Runner crashes / "ERROR" status
 - `./scripts/harness-check.sh pre-work --json` should output valid JSON on stdout.

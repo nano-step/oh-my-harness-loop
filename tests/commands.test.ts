@@ -75,7 +75,6 @@ function makeOnContext(projectRoot: string, sessionId: string): HarnessOnContext
     getMessageCount: () => 0,
     injectMessage: vi.fn().mockResolvedValue(undefined),
     showToast: vi.fn(),
-    askQuestion: vi.fn().mockResolvedValue("Abort"),
   };
 }
 
@@ -181,32 +180,34 @@ describe("handleHarnessOn — double-start handling", () => {
 
     await handleHarnessOn(ctx, []);
 
-    expect(ctx.askQuestion).toHaveBeenCalledWith(
-      expect.objectContaining({
-        choices: expect.arrayContaining(["Resume", "Cancel and restart", "Abort"]),
-      })
+    expect(ctx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("--resume"),
+      "error"
+    );
+    expect(ctx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("--restart"),
+      "error"
     );
   });
 
-  it("shows aborted toast when user selects Abort on second start", async () => {
+  it("emits actionable error toast on second start without flags", async () => {
     const projectRoot = makeProjectRoot();
     writeConfig(projectRoot);
     writeExecutableRunner(projectRoot);
 
     const ctx = makeOnContext(projectRoot, "sess-abort");
-    ctx.askQuestion = vi.fn().mockResolvedValue("Abort");
 
     await handleHarnessOn(ctx, []);
     await handleHarnessOn(ctx, []);
 
     expect(ctx.showToast).toHaveBeenCalledWith(
-      expect.stringContaining("aborted"),
-      "warning"
+      expect.stringContaining("Loop already active"),
+      "error"
     );
     expect(createLoopStateController(projectRoot).getState()?.loop.active).toBe(true);
   });
 
-  it("resumes loop in new session when user selects Resume", async () => {
+  it("resumes loop in new session when --resume flag is passed", async () => {
     const projectRoot = makeProjectRoot();
     writeConfig(projectRoot);
     writeExecutableRunner(projectRoot);
@@ -215,16 +216,19 @@ describe("handleHarnessOn — double-start handling", () => {
     await handleHarnessOn(firstCtx, []);
 
     const secondCtx = makeOnContext(projectRoot, "sess-resume");
-    secondCtx.askQuestion = vi.fn().mockResolvedValue("Resume");
 
-    await handleHarnessOn(secondCtx, []);
+    await handleHarnessOn(secondCtx, ["--resume"]);
 
     const state = createLoopStateController(projectRoot).getState();
     expect(state?.loop.session_id).toBe("sess-resume");
     expect(state?.loop.active).toBe(true);
+    expect(secondCtx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("Resuming"),
+      "info"
+    );
   });
 
-  it("restarts loop from first gate when user selects Cancel and restart", async () => {
+  it("restarts loop from first gate when --restart flag is passed", async () => {
     const projectRoot = makeProjectRoot();
     writeConfig(projectRoot);
     writeExecutableRunner(projectRoot);
@@ -237,9 +241,8 @@ describe("handleHarnessOn — double-start handling", () => {
     expect(controller.getState()?.loop.current_gate).toBe("in-progress");
 
     const secondCtx = makeOnContext(projectRoot, "sess-restart");
-    secondCtx.askQuestion = vi.fn().mockResolvedValue("Cancel and restart");
 
-    await handleHarnessOn(secondCtx, []);
+    await handleHarnessOn(secondCtx, ["--restart"]);
 
     const state = createLoopStateController(projectRoot).getState();
     expect(state?.loop.active).toBe(true);
