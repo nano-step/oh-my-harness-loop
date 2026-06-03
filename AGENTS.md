@@ -1,8 +1,8 @@
-# oh-my-harness-loop — Agent Context
+# oh-my-harness — Agent Context
 
 **Stack:** TypeScript 5.5, Vitest 2, Zod 3, `@opencode-ai/plugin` (peerDep)  
 **Runtime:** OpenCode's Bun/Node environment (plugin loaded by OpenCode, NOT by nano-brain Go binary)  
-**Published:** `oh-my-harness-loop` on npm · source at `nano-step/oh-my-harness-loop`
+**Published:** `oh-my-harness` on npm · source at `nano-step/oh-my-harness`
 
 ---
 

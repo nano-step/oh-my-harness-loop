@@ -8,36 +8,33 @@ The harness loop plugin automates your development workflow by driving your proj
 
 ## Quick Start
 
-**Fastest path:** ask your AI agent in OpenCode:
-
-```
-setup harness-on
-```
-
-The agent reads [`docs/SETUP_INSTRUCTIONS_FOR_AGENT.md`](docs/SETUP_INSTRUCTIONS_FOR_AGENT.md) and walks through the setup for you.
-
-**Manual path** (5 minutes):
-
 ```bash
-# 1. Install
-npm install oh-my-harness-loop@latest
+# 1. Install the package
+npm install oh-my-harness@latest
 
-# 2. Register in opencode.json
+# 2. Register in .opencode/opencode.json
 mkdir -p .opencode
-echo '{"plugin":["oh-my-harness-loop@latest"]}' > .opencode/opencode.json
+echo '{"plugin":["oh-my-harness@latest"]}' > .opencode/opencode.json
+```
 
-# 3. Copy templates (config + runner stub + gate docs + .gitignore)
-cp node_modules/oh-my-harness-loop/templates/init/.opencode/harness.config.json .opencode/
-mkdir -p scripts && cp node_modules/oh-my-harness-loop/templates/init/scripts/harness-check.sh scripts/
-chmod +x scripts/harness-check.sh
-mkdir -p docs/harness/gates && cp node_modules/oh-my-harness-loop/templates/init/docs/harness/gates/*.md docs/harness/gates/
-cat node_modules/oh-my-harness-loop/templates/init/gitignore.template >> .gitignore
+Then **restart OpenCode** (so the slash-command shims are loaded) and run:
 
-# 4. Sanity check
-./scripts/harness-check.sh pre-work --json
+```
+/harness-init
+```
 
-# 5. Restart OpenCode, then run:
-#    /harness-on
+That single command bootstraps everything:
+- `.opencode/harness.config.json` (5-gate skeleton)
+- `scripts/harness-check.sh` (no-op runner stub)
+- `docs/harness/gates/*.md` (5 placeholder gate docs)
+- `.gitignore` entries for runtime state files
+
+Then:
+
+```
+/harness-on           # start the loop
+/harness-check pre-merge   # manually run a gate (read-only)
+/harness-off          # stop the loop (preserves state for --resume)
 ```
 
 **Full walkthrough with troubleshooting:** [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
@@ -46,7 +43,7 @@ The templates ship with a **no-op stub runner** (every gate returns PASS). Edit 
 
 ## Slash Commands (auto-installed)
 
-When you `npm install oh-my-harness-loop` in a project, a `postinstall` script automatically creates the OpenCode slash-command shims:
+When you `npm install oh-my-harness` in a project, a `postinstall` script automatically creates the OpenCode slash-command shims:
 
 - `.opencode/commands/harness-on.md`
 - `.opencode/commands/harness-off.md`
@@ -56,7 +53,7 @@ These shims make `/harness-on` and `/harness-off` appear in OpenCode's autocompl
 **The postinstall:**
 - Never overwrites existing files — if you customize the shims, they're preserved.
 - Fails silently — install never breaks even if shim creation errors.
-- Can be disabled: set `OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL=1` before installing.
+- Can be disabled: set `OH_MY_HARNESS_SKIP_POSTINSTALL=1` before installing.
 
 If you skip the postinstall (or it failed), create the shims manually:
 
@@ -163,6 +160,8 @@ Your runner must:
 
 | Command | Description |
 |---------|-------------|
+| `/harness-init` | Bootstrap harness setup in the current project — copies templates (config, runner stub, gate docs, gitignore entries). Idempotent. |
+| `/harness-check <gate>` | Manually run a single gate via the configured runner. Read-only — does not modify loop state. |
 | `/harness-on` | Start the harness loop. If a loop is already active, emits an error telling you to use `--resume` or `--restart`. |
 | `/harness-on --resume` | Rebind an existing loop into the current session. Re-runs the current gate from iteration 0 (gates are idempotent). |
 | `/harness-on --restart` | Wipe existing state and start fresh from the first gate. |

@@ -1,7 +1,7 @@
-# Engineering Harness — oh-my-harness-loop
+# Engineering Harness — oh-my-harness
 
 **Stack:** TypeScript, Vitest, OpenCode Plugin API (`@opencode-ai/plugin`)  
-**Published:** npm `oh-my-harness-loop` · GitHub `nano-step/oh-my-harness-loop`
+**Published:** npm `oh-my-harness` · GitHub `nano-step/oh-my-harness`
 
 ---
 
