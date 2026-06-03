@@ -175,6 +175,54 @@ describe("invokeRunner", () => {
     expect(result.gate).toBe("pre-work");
   });
 
+  it("BUG M10: exit code 3 (WAITING) round-trips correctly", async () => {
+    const output = {
+      gate: "pre-work",
+      status: "WAITING",
+      checks: [],
+      rule_ids_violated: [],
+      wait_seconds: 30,
+    };
+    mockSpawn.mockReturnValue(fakeProc(JSON.stringify(output), 3));
+
+    const result = await invokeRunner(makeConfig(), "pre-work", "/project");
+
+    expect(result.status).toBe("WAITING");
+    expect(result.wait_seconds).toBe(30);
+  });
+
+  it("BUG M10: exit code 4 (BLOCKED) round-trips correctly", async () => {
+    const output = {
+      gate: "pre-work",
+      status: "BLOCKED",
+      checks: [],
+      rule_ids_violated: ["human-input-required"],
+      instructions_for_agent: "Manual approval needed",
+    };
+    mockSpawn.mockReturnValue(fakeProc(JSON.stringify(output), 4));
+
+    const result = await invokeRunner(makeConfig(), "pre-work", "/project");
+
+    expect(result.status).toBe("BLOCKED");
+    expect(result.rule_ids_violated).toContain("human-input-required");
+  });
+
+  it("BUG M10: exit code 5 (ERROR) with valid JSON round-trips correctly", async () => {
+    const output = {
+      gate: "pre-work",
+      status: "ERROR",
+      checks: [],
+      rule_ids_violated: ["runner-internal-error"],
+      instructions_for_agent: "Runner script crashed",
+    };
+    mockSpawn.mockReturnValue(fakeProc(JSON.stringify(output), 5));
+
+    const result = await invokeRunner(makeConfig(), "pre-work", "/project");
+
+    expect(result.status).toBe("ERROR");
+    expect(result.rule_ids_violated).toContain("runner-internal-error");
+  });
+
   it("valid JSON but wrong gate — returns synthetic ERROR with gate mismatch message", async () => {
     const wrongGateOutput = {
       gate: "post-merge",

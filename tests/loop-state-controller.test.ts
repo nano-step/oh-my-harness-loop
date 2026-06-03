@@ -176,4 +176,15 @@ describe("cancelLoop", () => {
     const state = ctrl.getState();
     expect(state!.loop.config_snapshot.gates).toEqual(config.gates);
   });
+
+  it("BUG M2: recordSameErrorHistory canonicalizes rule_ids at record time", () => {
+    const root = makeTempRoot();
+    roots.push(root);
+    const ctrl = createLoopStateController(root);
+    ctrl.startLoop("sess-m2", makeConfig());
+
+    ctrl.recordSameErrorHistory("pre-work", ["R2", "R1", "R3"]);
+    const state = ctrl.getState()!;
+    expect(state.loop.same_error_history["pre-work"]).toEqual([["R1", "R2", "R3"]]);
+  });
 });

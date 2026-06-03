@@ -359,7 +359,13 @@ async function processLoopIteration(
     return;
   }
 
-  if (latestAssistantTurnMadeNoProgress(messages)) {
+  const lastRunnerStatus = state.loop.last_runner_output?.status;
+  const runnerMadeForwardProgress =
+    lastRunnerStatus === "PASS" || lastRunnerStatus === "SKIP";
+  if (
+    latestAssistantTurnMadeNoProgress(messages) &&
+    !runnerMadeForwardProgress
+  ) {
     controller.incrementNoProgress();
     state = controller.getState()!;
 
@@ -560,18 +566,20 @@ async function processLoopIteration(
     }
   }
 
+  const freshStateForCache = controller.getState() ?? state;
+  const freshGate = freshStateForCache.loop.current_gate;
   if (
     isCacheFresh(
-      state,
-      currentGate,
+      freshStateForCache,
+      freshGate,
       config.cache_ttl_minutes
     )
   ) {
-    const nextGate = getNextGate(config, currentGate, null);
+    const nextGate = getNextGate(config, freshGate, null);
 
     if (nextGate) {
       controller.transitionToGate(nextGate);
-      ctx.showToast(`✓ Gate "${currentGate}" cached PASS → ${nextGate}`, "info");
+      ctx.showToast(`✓ Gate "${freshGate}" cached PASS → ${nextGate}`, "info");
     } else {
       controller.cancelLoop();
       ctx.showToast("🎉 Harness loop complete! (all gates cached PASS)", "info");
