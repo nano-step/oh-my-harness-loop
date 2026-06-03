@@ -30,6 +30,13 @@ describe("E2E smoke: /harness-init", () => {
         "info"
       );
       expect(injectMessage).toHaveBeenCalledOnce();
+
+      const firstCall = injectMessage.mock.calls[0];
+      expect(firstCall).toBeDefined();
+      const reportText = firstCall![0] as string;
+      expect(reportText).toContain("Agent: please ask the user");
+      expect(reportText).toContain("Do you want to customize");
+      expect(reportText).toContain("scripts/harness-check.sh");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

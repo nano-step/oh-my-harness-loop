@@ -166,11 +166,31 @@ export async function handleHarnessInit(ctx: HarnessInitContext): Promise<void> 
     reportLines.push("");
   }
 
-  reportLines.push("### Next steps");
-  reportLines.push("1. Edit `scripts/harness-check.sh` to add real checks for your project (tsc, vitest, lint, etc.).");
-  reportLines.push("2. Edit gate docs at `docs/harness/gates/*.md` with project-specific rules.");
-  reportLines.push("3. Restart OpenCode so the slash command shims are loaded.");
-  reportLines.push("4. Run `/harness-on` to start the loop.");
+  reportLines.push("### What was set up");
+  reportLines.push("- `.opencode/harness.config.json` — 5-gate skeleton (pre-work, in-progress, pre-merge, post-merge, next-ready)");
+  reportLines.push("- `scripts/harness-check.sh` — **NO-OP STUB**: every gate returns PASS. Useful for verifying the wiring, but you almost certainly want to replace it.");
+  reportLines.push("- `docs/harness/gates/*.md` — 5 placeholder gate docs");
+  reportLines.push("- `.gitignore` — entries for runtime state files");
+  reportLines.push("");
+  reportLines.push("### Agent: please ask the user");
+  reportLines.push("");
+  reportLines.push(
+    "The runner stub at `scripts/harness-check.sh` is currently a no-op (every gate returns PASS). The harness loop will technically run end-to-end, but it won't actually verify anything about your code. **Ask the user explicitly**:"
+  );
+  reportLines.push("");
+  reportLines.push("1. **Do you want to customize `scripts/harness-check.sh` now?** (Recommended — otherwise the loop is just ceremony.)");
+  reportLines.push("2. **If yes, what should each gate verify for this project?** Common per-stack patterns:");
+  reportLines.push("   - **TypeScript/Node**: `pre-merge` runs `tsc --noEmit` + `vitest run` + lint + `npm pack --dry-run`");
+  reportLines.push("   - **Python**: `pre-merge` runs `mypy` + `pytest` + `ruff` + `pip wheel`");
+  reportLines.push("   - **Rust**: `pre-merge` runs `cargo build` + `cargo test` + `cargo clippy -- -D warnings`");
+  reportLines.push("   - **Go**: `pre-merge` runs `go vet` + `go test ./...` + `golangci-lint run`");
+  reportLines.push("   - Other gates (`pre-work`, `in-progress`, `post-merge`, `next-ready`) are usually lighter — pre-work checks branch state, post-merge checks main is clean.");
+  reportLines.push("3. **Read each gate doc** at `docs/harness/gates/*.md` and fill in the project's actual hard rules + FAIL conditions. The agent should populate these based on the user's answers above.");
+  reportLines.push("");
+  reportLines.push("After customization:");
+  reportLines.push("- Restart OpenCode (so the slash-command shims are scanned)");
+  reportLines.push("- Run `/harness-on` to start the loop");
+  reportLines.push("- Or run `/harness-check pre-merge` first to sanity-check your runner without starting a loop");
 
   await ctx.injectMessage(reportLines.join("\n"));
 }
