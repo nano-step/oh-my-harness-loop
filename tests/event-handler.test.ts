@@ -226,6 +226,55 @@ describe("handleSessionIdle — FAIL then PASS gate transitions", () => {
     expect(state?.loop.active).toBe(true);
   });
 
+  it("BUG C2: FAIL increments total_iteration (not just gate_iteration)", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-c2-fail";
+    startLoop(projectRoot, sessionId, makeConfig());
+    const initial = createLoopStateController(projectRoot).getState()!.loop.total_iteration;
+
+    mockedInvokeRunner.mockResolvedValueOnce(makeFailOutput("pre-work"));
+    const ctx = makeContext(projectRoot, sessionId);
+    await runIdle(ctx);
+
+    const after = createLoopStateController(projectRoot).getState()!.loop;
+    expect(after.gate_iteration).toBeGreaterThan(1);
+    expect(after.total_iteration).toBe(initial + 1);
+  });
+
+  it("BUG C2: 3 consecutive FAILs on same gate bump total_iteration by 3", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-c2-3fails";
+    startLoop(projectRoot, sessionId, makeConfig());
+    const initial = createLoopStateController(projectRoot).getState()!.loop.total_iteration;
+
+    const ctx = makeContext(projectRoot, sessionId);
+    for (let i = 0; i < 3; i++) {
+      mockedInvokeRunner.mockResolvedValueOnce(makeFailOutput("pre-work"));
+      await runIdle(ctx);
+    }
+
+    const after = createLoopStateController(projectRoot).getState()!.loop;
+    expect(after.total_iteration).toBe(initial + 3);
+  });
+
+  it("BUG C2: FAIL counter respects max_total_iterations safety brake", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-c2-cap";
+    startLoop(projectRoot, sessionId, makeConfig({ max_total_iterations: 3 }));
+
+    const ctx = makeContext(projectRoot, sessionId);
+    mockedInvokeRunner.mockResolvedValue(makeFailOutput("pre-work"));
+    for (let i = 0; i < 5; i++) {
+      await runIdle(ctx);
+      const s = createLoopStateController(projectRoot).getState()!.loop;
+      if (!s.active) break;
+    }
+
+    const state = createLoopStateController(projectRoot).getState()!.loop;
+    expect(state.active).toBe(false);
+    expect(state.total_iteration).toBeGreaterThanOrEqual(3);
+  });
+
   it("transitions to next gate on PASS", async () => {
     const projectRoot = makeProjectRoot();
     const sessionId = "sess-pass";

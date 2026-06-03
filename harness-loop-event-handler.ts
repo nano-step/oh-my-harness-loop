@@ -465,24 +465,35 @@ async function processLoopIteration(
           );
         }, intervalSeconds * 1000);
 
+        const scheduledTaskId = taskId;
+        const scheduledGate = currentGate;
         const graceTimeout = setTimeout(async () => {
           clearInterval(heartbeatInterval);
-
-          if (ctx.cancelBackgroundTask) {
-            await ctx.cancelBackgroundTask(taskId);
-          }
 
           const refreshedState = controller.getState();
           if (
             refreshedState == null ||
             !refreshedState.loop.active ||
-            Object.keys(refreshedState.loop.parallel_watchers).length === 0
+            refreshedState.loop.current_gate !== scheduledGate
           ) {
             return;
           }
 
+          const watcherStillActive = Object.values(
+            refreshedState.loop.parallel_watchers
+          ).some(
+            (w) => w.task_id === scheduledTaskId && w.status === "pending"
+          );
+          if (!watcherStillActive) {
+            return;
+          }
+
+          if (ctx.cancelBackgroundTask) {
+            await ctx.cancelBackgroundTask(scheduledTaskId);
+          }
+
           const timeoutOutput: RunnerOutput = {
-            gate: currentGate,
+            gate: scheduledGate,
             status: "FAIL",
             checks: [],
             rule_ids_violated: ["watcher-timeout"],
@@ -500,7 +511,7 @@ async function processLoopIteration(
           );
           await ctx.injectMessage(prompt);
           ctx.showToast(
-            `\u23F0 Gate "${currentGate}" watcher timed out after ${maxWaitSeconds}s`,
+            `\u23F0 Gate "${scheduledGate}" watcher timed out after ${maxWaitSeconds}s`,
             "warning"
           );
         }, (maxWaitSeconds + 30) * 1000);
@@ -613,6 +624,7 @@ async function handleRunnerOutput(
     case "FAIL":
     case "ERROR": {
       controller.incrementGateIteration();
+      controller.incrementTotalIteration();
       const failPrompt = buildContinuationPrompt(
         state,
         runnerOutput,
