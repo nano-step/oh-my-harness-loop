@@ -8,64 +8,41 @@ The harness loop plugin automates your development workflow by driving your proj
 
 ## Quick Start
 
-### 1. Copy the plugin
+**Fastest path:** ask your AI agent in OpenCode:
+
+```
+setup harness-on
+```
+
+The agent reads [`docs/SETUP_INSTRUCTIONS_FOR_AGENT.md`](docs/SETUP_INSTRUCTIONS_FOR_AGENT.md) and walks through the setup for you.
+
+**Manual path** (5 minutes):
 
 ```bash
-# From your project root
-cp -r /path/to/nano-brain/.opencode/plugin/harness-loop .opencode/plugin/
+# 1. Install
+npm install oh-my-harness-loop@latest
+
+# 2. Register in opencode.json
+mkdir -p .opencode
+echo '{"plugin":["oh-my-harness-loop@latest"]}' > .opencode/opencode.json
+
+# 3. Copy templates (config + runner stub + gate docs + .gitignore)
+cp node_modules/oh-my-harness-loop/templates/init/.opencode/harness.config.json .opencode/
+mkdir -p scripts && cp node_modules/oh-my-harness-loop/templates/init/scripts/harness-check.sh scripts/
+chmod +x scripts/harness-check.sh
+mkdir -p docs/harness/gates && cp node_modules/oh-my-harness-loop/templates/init/docs/harness/gates/*.md docs/harness/gates/
+cat node_modules/oh-my-harness-loop/templates/init/gitignore.template >> .gitignore
+
+# 4. Sanity check
+./scripts/harness-check.sh pre-work --json
+
+# 5. Restart OpenCode, then run:
+#    /harness-on
 ```
 
-### 2. Install dependencies
+**Full walkthrough with troubleshooting:** [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 
-```bash
-cd .opencode/plugin/harness-loop
-npm install
-npm run build
-cd ../../..
-```
-
-### 3. Create a harness config
-
-Create `.opencode/harness.config.json`:
-
-```json
-{
-  "runner_path": "./scripts/harness-check.sh",
-  "gates": ["pre-work", "in-progress", "pre-merge", "post-merge", "next-ready"],
-  "rule_id_format": "R{id}",
-  "fail_policy": "hybrid"
-}
-```
-
-### 4. Implement a runner
-
-Your runner script receives a gate name and must output JSON matching the runner contract:
-
-```bash
-#!/bin/bash
-# Example: scripts/harness-check.sh
-
-GATE="$1"
-shift
-
-# Your gate logic here...
-
-# Output JSON (to stdout)
-cat <<EOF
-{
-  "gate": "$GATE",
-  "status": "PASS",
-  "checks": [],
-  "next_gate": null
-}
-EOF
-```
-
-### 5. Start the loop
-
-```
-/harness-on
-```
+The templates ship with a **no-op stub runner** (every gate returns PASS). Edit `scripts/harness-check.sh` and `docs/harness/gates/*.md` to wire your real checks (tsc, vitest, lint, etc.).
 
 ## Slash Commands (auto-installed)
 
