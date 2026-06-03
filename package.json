@@ -15,7 +15,8 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node ./scripts/postinstall.js"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=0.1.0"
@@ -30,6 +31,7 @@
   },
   "files": [
     "dist",
+    "scripts/postinstall.js",
     "README.md"
   ],
   "license": "MIT",

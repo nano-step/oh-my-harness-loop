@@ -1,0 +1,178 @@
+import { describe, it, expect, afterEach } from "vitest";
+import { spawnSync } from "node:child_process";
+import {
+  mkdtempSync,
+  readFileSync,
+  existsSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const testDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of testDirs) {
+    if (existsSync(dir)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  testDirs.length = 0;
+});
+
+function runPostinstall(env: Record<string, string | undefined>) {
+  const scriptPath = join(__dirname, "..", "scripts", "postinstall.js");
+  const fullEnv: Record<string, string> = {
+    PATH: process.env["PATH"] || "",
+    ...env,
+  };
+  return spawnSync("node", [scriptPath], {
+    env: fullEnv,
+    encoding: "utf-8",
+  });
+}
+
+describe("postinstall.js", () => {
+  it("exits 0 when OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL=1", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: "1",
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(existsSync(join(tmpDir, ".opencode", "command", "harness-on.md")))
+      .toBe(false);
+  });
+
+  it("exits 0 when INIT_CWD is not set (treated as dev/manual run)", () => {
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: undefined,
+    });
+
+    expect(result.status).toBe(0);
+  });
+
+  it("exits 0 when INIT_CWD points to package root (dev-install detection)", () => {
+    const packageRoot = join(__dirname, "..");
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: packageRoot,
+    });
+
+    expect(result.status).toBe(0);
+  });
+
+  it("creates both shim files on fresh install", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+
+    const harness_on_path = join(tmpDir, ".opencode", "command", "harness-on.md");
+    const harness_off_path = join(tmpDir, ".opencode", "command", "harness-off.md");
+
+    expect(existsSync(harness_on_path)).toBe(true);
+    expect(existsSync(harness_off_path)).toBe(true);
+
+    const harness_on_content = readFileSync(harness_on_path, "utf-8");
+    const harness_off_content = readFileSync(harness_off_path, "utf-8");
+
+    expect(harness_on_content).toContain(
+      "description: Start the harness gate loop for the current feature"
+    );
+    expect(harness_on_content).toContain("$ARGUMENTS");
+
+    expect(harness_off_content).toContain(
+      "description: Cancel the active harness gate loop"
+    );
+  });
+
+  it("does not overwrite existing shim files (idempotent)", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    mkdirSync(join(tmpDir, ".opencode", "command"), { recursive: true });
+
+    const harness_on_path = join(tmpDir, ".opencode", "command", "harness-on.md");
+    const customContent = "---\ndescription: CUSTOM\n---\n";
+    writeFileSync(harness_on_path, customContent, "utf-8");
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+
+    const harness_off_path = join(
+      tmpDir,
+      ".opencode",
+      "command",
+      "harness-off.md"
+    );
+    expect(existsSync(harness_off_path)).toBe(true);
+
+    const harness_on_updated = readFileSync(harness_on_path, "utf-8");
+    expect(harness_on_updated).toBe(customContent);
+  });
+
+  it("exits 0 even if directory creation fails (fail-safe)", () => {
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: "/nonexistent/deeply/nested/path/that/cannot/exist",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("[oh-my-harness-loop] postinstall");
+  });
+
+  it("logs success message when files are created", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("[oh-my-harness-loop] Created");
+    expect(result.stdout).toContain("slash-command shim(s)");
+  });
+
+  it("does not log on success-no-op (when all files already exist)", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    mkdirSync(join(tmpDir, ".opencode", "command"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, ".opencode", "command", "harness-on.md"),
+      "existing",
+      "utf-8"
+    );
+    writeFileSync(
+      join(tmpDir, ".opencode", "command", "harness-off.md"),
+      "existing",
+      "utf-8"
+    );
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+  });
+});
