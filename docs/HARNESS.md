@@ -80,6 +80,35 @@ All gates must PASS before proceeding.
 
 ---
 
+## Auto-merge Policy
+
+Agents may auto-merge their own PR (`gh pr merge --squash --delete-branch`) without asking the user **when ALL of the following hold**:
+
+1. **Lane is `tiny` or `normal`.** High-risk lane PRs always require user merge approval.
+2. **Pre-merge gate PASSed** — full validation ladder green: `tsc --noEmit`, `vitest run`, no forbidden type escapes, `npm pack --dry-run`.
+3. **E2E smoke test verified the user-facing behavior change** — not just unit tests. For example:
+   - For a CLI/script change: run the script with realistic inputs in a tmpdir and assert the observable side-effects.
+   - For a plugin behavior change: spawn an opencode session and probe the changed behavior (`opencode run --format json …`, see global AGENTS.md "E2E Behavior Verification" rule).
+   - For a config/types change: run a consumer scenario end-to-end with the new build.
+   - Unit tests alone do NOT satisfy this requirement — they prove the code does what the tests say, not that the user's problem is solved.
+4. **CI on the PR is green.** Wait for `gh pr checks <n>` to report `pass` before merging.
+5. **No conflicts, no requested reviewers.** `gh pr view --json mergeable,reviewRequests` shows `MERGEABLE` and empty review requests.
+6. **Smoke evidence is preserved in the PR description.** Paste the smoke-test commands and output so reviewers can reproduce.
+
+When all 6 hold: merge and continue with post-merge / next-ready gates without pausing. Report the merge SHA and release tag in the final summary.
+
+When ANY of them fails: **PAUSE** at "awaiting user merge approval". Surface which precondition failed and what evidence is missing.
+
+**Hard exceptions** (always pause regardless of the 6 above):
+- PR touches `RunnerOutputSchema`, `HarnessConfigSchema`, or any exported public type → hard gate `public-api-contract`.
+- PR touches `package.json` `exports`, `main`, `types`, or `files` → hard gate `npm-publish-contract`.
+- PR introduces a new runtime dependency.
+- Release pipeline is currently broken (red on master). Fix it first.
+
+The `[skip-release]` suffix in commit messages is **NOT** a substitute for these checks — it only controls auto-tag; merging still triggers history rewrite + branch deletion.
+
+---
+
 ## Forbidden Practices
 
 - No `as any`, `@ts-ignore` — type errors must be fixed
@@ -88,6 +117,7 @@ All gates must PASS before proceeding.
 - No publishing without `npm pack --dry-run` passing
 - No archiving OpenSpec change without review verdict PASS
 - No breaking `RunnerOutputSchema` or `HarnessConfigSchema` without a `public-api-contract` issue
+- No auto-merging when any auto-merge precondition fails (see Auto-merge Policy above)
 
 ---
 
