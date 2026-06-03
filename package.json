@@ -1,0 +1,51 @@
+{
+  "name": "oh-my-harness-loop",
+  "version": "0.0.0-dev",
+  "description": "Autonomous harness loop OpenCode plugin — gate-driven development workflow",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=0.1.0"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nano-step/oh-my-harness-loop.git"
+  },
+  "homepage": "https://github.com/nano-step/oh-my-harness-loop#readme",
+  "bugs": {
+    "url": "https://github.com/nano-step/oh-my-harness-loop/issues"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "harness",
+    "ci",
+    "development-workflow"
+  ]
+}

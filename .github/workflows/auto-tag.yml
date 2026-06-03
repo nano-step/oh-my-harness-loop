@@ -1,0 +1,48 @@
+name: Auto Tag
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    # Skip bot commits, skip-release markers, and version bumps
+    if: |
+      github.actor != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message, '[skip-release]') &&
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !startsWith(github.event.head_commit.message, 'chore: bump version')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Compute next tag
+        id: tag
+        run: |
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +'%-m')
+          DAY=$(date -u +'%-d')
+          PREFIX="v${YEAR}.${MONTH}.${DAY}"
+
+          # Find highest N for today
+          LAST=$(git tag --list "${PREFIX}.*" | sort -t. -k4 -n | tail -1)
+          if [[ -z "$LAST" ]]; then
+            N=1
+          else
+            LAST_N=$(echo "$LAST" | awk -F. '{print $NF}')
+            N=$(( 10#$LAST_N + 1 ))
+          fi
+
+          TAG="${PREFIX}.${N}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Tagging: $TAG"
+
+      - name: Push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.tag.outputs.tag }}"
+          git push origin "${{ steps.tag.outputs.tag }}"
