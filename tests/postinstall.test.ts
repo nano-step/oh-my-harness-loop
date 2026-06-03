@@ -217,4 +217,90 @@ describe("postinstall.js", () => {
       existsSync(join(tmpDir, ".opencode", "command", "harness-on.md"))
     ).toBe(false);
   });
+
+  it("migrates v303 layout: deletes .opencode/command/harness-*.md and removes empty dir", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const legacyDir = join(tmpDir, ".opencode", "command");
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(join(legacyDir, "harness-on.md"), "stale", "utf-8");
+    writeFileSync(join(legacyDir, "harness-off.md"), "stale", "utf-8");
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(existsSync(join(legacyDir, "harness-on.md"))).toBe(false);
+    expect(existsSync(join(legacyDir, "harness-off.md"))).toBe(false);
+    expect(existsSync(legacyDir)).toBe(false);
+    expect(
+      existsSync(join(tmpDir, ".opencode", "commands", "harness-on.md"))
+    ).toBe(true);
+    expect(result.stdout).toContain("Migrated");
+  });
+
+  it("migration preserves user-authored files in .opencode/command/", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const legacyDir = join(tmpDir, ".opencode", "command");
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(join(legacyDir, "harness-on.md"), "stale", "utf-8");
+    writeFileSync(
+      join(legacyDir, "user-custom.md"),
+      "USER FILE — keep",
+      "utf-8"
+    );
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(existsSync(join(legacyDir, "harness-on.md"))).toBe(false);
+    expect(existsSync(join(legacyDir, "user-custom.md"))).toBe(true);
+    expect(existsSync(legacyDir)).toBe(true);
+    expect(readFileSync(join(legacyDir, "user-custom.md"), "utf-8")).toBe(
+      "USER FILE — keep"
+    );
+  });
+
+  it("migrates nested .opencode/.opencode/command/ junk from INIT_CWD bug", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const nestedDir = join(tmpDir, ".opencode", ".opencode", "command");
+    mkdirSync(nestedDir, { recursive: true });
+    writeFileSync(join(nestedDir, "harness-on.md"), "junk", "utf-8");
+    writeFileSync(join(nestedDir, "harness-off.md"), "junk", "utf-8");
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(existsSync(join(tmpDir, ".opencode", ".opencode"))).toBe(false);
+    expect(
+      existsSync(join(tmpDir, ".opencode", "commands", "harness-on.md"))
+    ).toBe(true);
+  });
+
+  it("no migration log when no legacy files present", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain("Migrated");
+    expect(result.stdout).toContain("Created");
+  });
 });
