@@ -11,20 +11,22 @@ export interface WatcherSpawnContext {
 export function buildWatcherPrompt(
   gate: string,
   config: HarnessConfig,
-  state: HarnessLoopState
+  state: HarnessLoopState,
+  taskId?: string
 ): string {
   const gateConfig = config.gate_instructions[gate];
   const maxWait = gateConfig?.async_max_wait_seconds ?? 1800;
   const pollInterval = gateConfig?.async_poll_interval_seconds ?? 60;
   const runnerPath = config.runner_path;
   const featureId = state.feature_id ?? "";
+  const taskFlag = taskId ? ` --task ${taskId}` : "";
 
   return `You are a harness loop background watcher for gate "${gate}".
 
 TASK: Poll the runner until it returns a terminal status (PASS, FAIL, BLOCKED) or timeout.
 
 RUNNER COMMAND:
-${runnerPath} ${gate} --json${featureId ? ` --feature=${featureId}` : ""}
+${runnerPath} ${gate}${taskFlag} --json${featureId ? ` --feature=${featureId}` : ""}
 
 POLL LOOP:
 1. Run the runner command, capture stdout.
@@ -49,11 +51,12 @@ export async function spawnWatcher(
   ctx: WatcherSpawnContext,
   gate: string,
   config: HarnessConfig,
-  state: HarnessLoopState
+  state: HarnessLoopState,
+  taskId?: string
 ): Promise<string> {
   const gateConfig = config.gate_instructions[gate];
   const subagentType = gateConfig?.async_subagent_type ?? "quick";
-  const prompt = buildWatcherPrompt(gate, config, state);
+  const prompt = buildWatcherPrompt(gate, config, state, taskId);
 
   return ctx.spawnBackgroundTask(subagentType, prompt);
 }

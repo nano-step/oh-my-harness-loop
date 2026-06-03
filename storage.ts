@@ -68,6 +68,28 @@ export function readState(statePath: string): HarnessLoopState | null {
     );
   }
 
+  const rawObj = parsed as Record<string, unknown>;
+  const loopRaw = rawObj["loop"] as Record<string, unknown> | undefined;
+  if (
+    loopRaw &&
+    "watcher_task_id" in loopRaw &&
+    !("parallel_watchers" in loopRaw)
+  ) {
+    const tid = loopRaw["watcher_task_id"];
+    loopRaw["parallel_watchers"] = tid
+      ? {
+          __legacy__: {
+            task_id: tid,
+            status: "pending",
+            result: null,
+            started_at:
+              (rawObj["updated_at"] as string) ?? new Date().toISOString(),
+          },
+        }
+      : {};
+    delete loopRaw["watcher_task_id"];
+  }
+
   const result = HarnessLoopStateSchema.safeParse(parsed);
   if (!result.success) {
     throw new StateCorruptionError(
@@ -134,7 +156,7 @@ export function clearLoopBlock(statePath: string): void {
     override_active: false,
     same_error_history: {},
     verification_pending: false,
-    watcher_task_id: null,
+    parallel_watchers: {},
     message_count_at_start: 0,
   };
 
@@ -190,7 +212,7 @@ export function createInitialState(
       override_active: false,
       same_error_history: {},
       verification_pending: false,
-      watcher_task_id: null,
+      parallel_watchers: {},
       message_count_at_start: 0,
     },
   };

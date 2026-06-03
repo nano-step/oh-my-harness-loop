@@ -117,7 +117,7 @@ export function createLoopStateController(
       override_active: false,
       same_error_history: {},
       verification_pending: false,
-      watcher_task_id: null,
+      parallel_watchers: {},
       message_count_at_start: messageCountAtStart,
     };
 
@@ -169,6 +169,7 @@ export function createLoopStateController(
       }
 
       loop.verification_pending = false;
+      loop.parallel_watchers = {};
     });
   }
 
@@ -235,13 +236,22 @@ export function createLoopStateController(
 
   function setWatcherTaskId(taskId: string | null): void {
     updateLoop((loop) => {
-      loop.watcher_task_id = taskId;
+      if (taskId) {
+        loop.parallel_watchers["__single__"] = {
+          task_id: taskId,
+          status: "pending",
+          result: null,
+          started_at: new Date().toISOString(),
+        };
+      } else {
+        loop.parallel_watchers = {};
+      }
     });
   }
 
   function clearWatcherTaskId(): void {
     updateLoop((loop) => {
-      loop.watcher_task_id = null;
+      loop.parallel_watchers = {};
     });
   }
 
