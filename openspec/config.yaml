@@ -1,0 +1,9 @@
+schema: spec-driven
+
+context: |
+  Stack: TypeScript, Zod, Vitest, OpenCode Plugin API (@opencode-ai/plugin)
+  Runtime: OpenCode's Bun/Node environment — no access to Go binary or nano-brain internals
+  Published as npm package: oh-my-harness-loop
+  Plugin entry: index.ts → registers session.idle + command.execute.before hooks
+  Gate loop: config-driven sequential gates, each gate run via runner subprocess
+  Async support: single watcher subagent per gate (watcher_task_id in LoopMeta)
