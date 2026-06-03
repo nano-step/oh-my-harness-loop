@@ -65,6 +65,10 @@ export function buildContinuationPrompt(
       : undefined,
   };
 
+  const gatesPassed = config.gates.filter(
+    (g) => state.checkpoints[g]?.status === "PASS"
+  ).length;
+
   const ctx: ContinuationPromptContext = {
     gate: runnerOutput.gate,
     gateIteration: state.loop.gate_iteration,
@@ -75,6 +79,8 @@ export function buildContinuationPrompt(
     runnerOutput: outputWithFormattedIds,
     config,
     gateInstructions,
+    gatesPassed,
+    gatesTotal: config.gates.length,
   };
 
   switch (runnerOutput.status) {

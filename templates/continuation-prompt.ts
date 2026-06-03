@@ -12,6 +12,19 @@ export interface ContinuationPromptContext {
   runnerOutput: RunnerOutput;
   config: HarnessConfig;
   gateInstructions: GateInstructionsResult;
+  gatesPassed?: number;
+  gatesTotal?: number;
+}
+
+function buildHeader(suffix: string): string {
+  return `${SYSTEM_DIRECTIVE_PREFIX} - ${suffix}]`;
+}
+
+function buildStatusLine(ctx: ContinuationPromptContext): string {
+  const passed = ctx.gatesPassed ?? 0;
+  const total = ctx.gatesTotal ?? ctx.config.gates.length;
+  const remaining = Math.max(total - passed, 0);
+  return `[Status: ${passed}/${total} gates passed, ${remaining} remaining | gate "${ctx.gate}" iter=${ctx.gateIteration}/${ctx.maxIterationsPerGate} | total=${ctx.totalIteration}/${ctx.maxTotalIterations}]`;
 }
 
 function buildInstructionsSection(
@@ -40,8 +53,6 @@ function buildInstructionsSection(
 }
 
 export function buildFailPrompt(ctx: ContinuationPromptContext): string {
-  const header = `${SYSTEM_DIRECTIVE_PREFIX} gate=${ctx.gate} iter=${ctx.gateIteration}/${ctx.maxIterationsPerGate} total=${ctx.totalIteration}/${ctx.maxTotalIterations}]`;
-
   const ruleIds =
     ctx.runnerOutput.rule_ids_violated.length > 0
       ? ctx.runnerOutput.rule_ids_violated.join(", ")
@@ -52,9 +63,12 @@ export function buildFailPrompt(ctx: ContinuationPromptContext): string {
     ctx.runnerOutput.instructions_for_agent ?? "No specific instructions provided.";
 
   const parts = [
-    header,
-    "",
-    `Gate "${ctx.gate}" failed. Rules violated: ${ruleIds}.`,
+    buildHeader("GATE CONTINUATION"),
+    `Gate "${ctx.gate}" FAILED. Rules violated: ${ruleIds}. Fix the failures and continue working on the next pending task.`,
+    "- Proceed without asking for permission",
+    "- Address each rule violation by editing the relevant code/config",
+    `- Do not stop until <promise>${ctx.config.completion_promise}</promise> is emitted AND all gates have passed`,
+    "- If you believe all work is already complete, the system is questioning your completion claim. Critically re-examine the loop state file `.opencode/harness-loop.local.json` to verify which gates have actually passed before claiming complete.",
     "",
   ];
 
@@ -66,33 +80,34 @@ export function buildFailPrompt(ctx: ContinuationPromptContext): string {
   parts.push(runnerInstructions);
   parts.push("");
   parts.push(
-    `Fix the listed failures, then continue. The harness will re-check ${ctx.gate} automatically on your next idle.`
+    `The harness will re-check "${ctx.gate}" automatically on your next idle.`
   );
-  parts.push("");
   parts.push(
     'If you cannot fix and need human input, add "[HARNESS-OVERRIDE]: <reason>" to your reply and the loop will pause for user approval.'
   );
 
   if (ctx.featureId) {
-    parts.push("");
     parts.push(`Original feature: ${ctx.featureId}`);
   }
+
+  parts.push("");
+  parts.push(buildStatusLine(ctx));
 
   return parts.join("\n");
 }
 
 export function buildBlockedPrompt(ctx: ContinuationPromptContext): string {
-  const header = `${SYSTEM_DIRECTIVE_PREFIX} gate=${ctx.gate} iter=${ctx.gateIteration}/${ctx.maxIterationsPerGate} total=${ctx.totalIteration}/${ctx.maxTotalIterations}]`;
-
   const instructionsSection = buildInstructionsSection(ctx.gateInstructions);
   const runnerInstructions =
     ctx.runnerOutput.instructions_for_agent ??
     "No specific instructions provided. Human intervention needed.";
 
   const parts = [
-    header,
-    "",
-    `Gate "${ctx.gate}" is BLOCKED and requires human intervention.`,
+    buildHeader("GATE BLOCKED — HUMAN INPUT NEEDED"),
+    `Gate "${ctx.gate}" is BLOCKED. This gate cannot proceed without operator decision — stop autonomous work and wait for guidance.`,
+    "- Do NOT continue past this gate until the operator responds",
+    "- Surface the BLOCKED state clearly in your reply",
+    "- Do NOT emit completion promise until operator unblocks",
     "",
   ];
 
@@ -103,16 +118,12 @@ export function buildBlockedPrompt(ctx: ContinuationPromptContext): string {
   parts.push("Runner instructions:");
   parts.push(runnerInstructions);
   parts.push("");
-  parts.push(
-    "This gate cannot proceed without user input. Please review the situation and provide guidance."
-  );
+  parts.push("Operator options:");
+  parts.push("1. Provide instructions on how to proceed");
+  parts.push("2. Run `/harness-off` to cancel the loop");
+  parts.push('3. Add `[HARNESS-OVERRIDE]: <reason>` to skip this gate');
   parts.push("");
-  parts.push(
-    "Options:\n" +
-      "1. Provide instructions on how to proceed\n" +
-      "2. Run /harness-off to cancel the loop\n" +
-      '3. Add "[HARNESS-OVERRIDE]: <reason>" to skip this gate'
-  );
+  parts.push(buildStatusLine(ctx));
 
   return parts.join("\n");
 }
@@ -121,15 +132,14 @@ export function buildWaitingPrompt(
   ctx: ContinuationPromptContext,
   waitSeconds: number
 ): string {
-  const header = `${SYSTEM_DIRECTIVE_PREFIX} gate=${ctx.gate} — WAITING]`;
-
   return [
-    header,
+    buildHeader("GATE WAITING"),
+    `Gate "${ctx.gate}" returned WAITING. The harness will re-check in ${waitSeconds}s.`,
+    "- Do NOT take any action on this gate while waiting",
+    "- The loop will retry automatically when the wait elapses",
+    "- Do NOT emit completion promise during the wait window",
     "",
-    `Gate "${ctx.gate}" returned WAITING status.`,
-    `The harness will re-check in ${waitSeconds} seconds.`,
-    "",
-    "Do not take any action — the loop will automatically retry.",
+    buildStatusLine(ctx),
   ].join("\n");
 }
 
@@ -138,10 +148,11 @@ export function buildPassTransitionPrompt(
   nextGate: string
 ): string {
   return [
-    `${SYSTEM_DIRECTIVE_PREFIX} — PASS]`,
-    "",
-    `✓ Gate "${previousGate}" passed.`,
-    `Transitioning to gate "${nextGate}".`,
+    buildHeader("GATE PASS — CONTINUE"),
+    `Gate "${previousGate}" PASSED. Now working on the next pending gate "${nextGate}".`,
+    "- Proceed without asking for permission",
+    `- Read the gate doc for "${nextGate}" and begin its procedure`,
+    "- Do not stop until all remaining gates pass",
   ].join("\n");
 }
 
@@ -150,16 +161,13 @@ export function buildCompletionPrompt(
 ): string {
   const reason =
     source === "promise_tag"
-      ? "Completion promise tag detected."
-      : "All gates passed and final gate reached.";
+      ? "Completion promise tag detected and structurally verified (all gates PASS, runner output PASS, at last gate, next_gate=null)."
+      : "All gates passed and final gate reached (structural completion).";
 
   return [
-    `${SYSTEM_DIRECTIVE_PREFIX} — COMPLETE]`,
-    "",
-    `🎉 Harness loop complete!`,
-    "",
-    reason,
-    "",
-    "The loop has ended successfully.",
+    buildHeader("LOOP COMPLETE"),
+    `🎉 Harness loop complete. ${reason}`,
+    "- All work is done — no further action needed for this loop",
+    "- The state file remains for audit; use /harness-on --restart for a new feature",
   ].join("\n");
 }

@@ -33,4 +33,4 @@ export const OVERRIDE_CONFIG_FILE_PATH = ".opencode/harness.override.json";
 export const CONVENTION_GATE_DOC_PATH = "docs/harness/gates";
 
 export const SYSTEM_DIRECTIVE_PREFIX =
-  "[SYSTEM_DIRECTIVE — HARNESS LOOP" as const;
+  "[SYSTEM DIRECTIVE: OH-MY-HARNESS-LOOP" as const;
