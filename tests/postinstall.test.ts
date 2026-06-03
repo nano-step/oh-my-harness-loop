@@ -45,7 +45,7 @@ describe("postinstall.js", () => {
     });
 
     expect(result.status).toBe(0);
-    expect(existsSync(join(tmpDir, ".opencode", "command", "harness-on.md")))
+    expect(existsSync(join(tmpDir, ".opencode", "commands", "harness-on.md")))
       .toBe(false);
   });
 
@@ -79,8 +79,8 @@ describe("postinstall.js", () => {
 
     expect(result.status).toBe(0);
 
-    const harness_on_path = join(tmpDir, ".opencode", "command", "harness-on.md");
-    const harness_off_path = join(tmpDir, ".opencode", "command", "harness-off.md");
+    const harness_on_path = join(tmpDir, ".opencode", "commands", "harness-on.md");
+    const harness_off_path = join(tmpDir, ".opencode", "commands", "harness-off.md");
 
     expect(existsSync(harness_on_path)).toBe(true);
     expect(existsSync(harness_off_path)).toBe(true);
@@ -102,9 +102,9 @@ describe("postinstall.js", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
     testDirs.push(tmpDir);
 
-    mkdirSync(join(tmpDir, ".opencode", "command"), { recursive: true });
+    mkdirSync(join(tmpDir, ".opencode", "commands"), { recursive: true });
 
-    const harness_on_path = join(tmpDir, ".opencode", "command", "harness-on.md");
+    const harness_on_path = join(tmpDir, ".opencode", "commands", "harness-on.md");
     const customContent = "---\ndescription: CUSTOM\n---\n";
     writeFileSync(harness_on_path, customContent, "utf-8");
 
@@ -118,7 +118,7 @@ describe("postinstall.js", () => {
     const harness_off_path = join(
       tmpDir,
       ".opencode",
-      "command",
+      "commands",
       "harness-off.md"
     );
     expect(existsSync(harness_off_path)).toBe(true);
@@ -155,14 +155,14 @@ describe("postinstall.js", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
     testDirs.push(tmpDir);
 
-    mkdirSync(join(tmpDir, ".opencode", "command"), { recursive: true });
+    mkdirSync(join(tmpDir, ".opencode", "commands"), { recursive: true });
     writeFileSync(
-      join(tmpDir, ".opencode", "command", "harness-on.md"),
+      join(tmpDir, ".opencode", "commands", "harness-on.md"),
       "existing",
       "utf-8"
     );
     writeFileSync(
-      join(tmpDir, ".opencode", "command", "harness-off.md"),
+      join(tmpDir, ".opencode", "commands", "harness-off.md"),
       "existing",
       "utf-8"
     );
@@ -174,5 +174,47 @@ describe("postinstall.js", () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toBe("");
+  });
+
+  it("walks up when INIT_CWD points at a .opencode subdir (no nested .opencode/.opencode)", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const opencodeDir = join(tmpDir, ".opencode");
+    mkdirSync(opencodeDir, { recursive: true });
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: opencodeDir,
+    });
+
+    expect(result.status).toBe(0);
+
+    expect(
+      existsSync(join(tmpDir, ".opencode", "commands", "harness-on.md"))
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(tmpDir, ".opencode", ".opencode", "commands", "harness-on.md")
+      )
+    ).toBe(false);
+  });
+
+  it("writes shims to the canonical 'commands/' (plural) directory", () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "postinstall-test-"));
+    testDirs.push(tmpDir);
+
+    const result = runPostinstall({
+      OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL: undefined,
+      INIT_CWD: tmpDir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(
+      existsSync(join(tmpDir, ".opencode", "commands", "harness-on.md"))
+    ).toBe(true);
+    expect(
+      existsSync(join(tmpDir, ".opencode", "command", "harness-on.md"))
+    ).toBe(false);
   });
 });

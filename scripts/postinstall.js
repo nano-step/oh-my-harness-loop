@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,10 +15,16 @@ if (process.env.OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL === "1") {
 // Dev-install detection: npm sets INIT_CWD to the user's cwd at start of `npm install`.
 // If INIT_CWD equals our own package dir (we are being dev-installed in our own repo),
 // or if INIT_CWD is missing (some package managers don't set it), skip.
-const initCwd = process.env.INIT_CWD;
-if (!initCwd) {
+const rawInitCwd = process.env.INIT_CWD;
+if (!rawInitCwd) {
   process.exit(0);
 }
+
+// If the user ran `npm install` from inside a `.opencode/` subdir (e.g. they keep
+// a separate package.json there), INIT_CWD points at `.opencode/` itself. Without
+// this guard we'd create `.opencode/.opencode/commands/…`. Walk up to the parent.
+const initCwd =
+  basename(rawInitCwd) === ".opencode" ? dirname(rawInitCwd) : rawInitCwd;
 
 // __dirname points to the installed package dir (e.g. node_modules/oh-my-harness-loop/scripts/)
 // If INIT_CWD is the same as our package parent (going up from scripts/ to package root),
@@ -31,12 +36,12 @@ if (initCwd === packageRoot) {
 
 const SHIMS = [
   {
-    relPath: ".opencode/command/harness-on.md",
+    relPath: ".opencode/commands/harness-on.md",
     content:
       "---\ndescription: Start the harness gate loop for the current feature\n---\n\n$ARGUMENTS\n",
   },
   {
-    relPath: ".opencode/command/harness-off.md",
+    relPath: ".opencode/commands/harness-off.md",
     content: "---\ndescription: Cancel the active harness gate loop\n---\n",
   },
 ];
@@ -58,7 +63,9 @@ try {
     console.log(
       "[oh-my-harness-loop] Created " +
         created +
-        " slash-command shim(s) in .opencode/command/ (" +
+        " slash-command shim(s) in " +
+        join(initCwd, ".opencode/commands") +
+        " (" +
         skipped +
         " already present). Restart OpenCode to use /harness-on and /harness-off."
     );
