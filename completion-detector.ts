@@ -10,22 +10,118 @@ export interface SessionContext {
   getMessages(): Array<{ role: string; content: string }>;
 }
 
-export function detectPromiseTag(
+export interface PromiseTagResult {
+  tagPresent: boolean;
+  structuralPass: boolean;
+  reason: string | null;
+}
+
+export interface CompletionResult {
+  source: CompletionSource;
+  liedAboutCompletion: boolean;
+  lieReason: string | null;
+}
+
+function hasPromiseTag(
   messages: Array<{ role: string; content: string }>,
   completionPromise: string,
   messageCountAtStart: number
 ): boolean {
   const promisePattern = `<promise>${completionPromise}</promise>`;
-
   const recentMessages = messages.slice(messageCountAtStart);
-
   for (const msg of recentMessages) {
     if (msg.role === "assistant" && msg.content.includes(promisePattern)) {
       return true;
     }
   }
-
   return false;
+}
+
+function structuralGuard(
+  state: HarnessLoopState,
+  runnerOutput: RunnerOutput | null,
+  config: HarnessConfig
+): { pass: boolean; reason: string | null } {
+  const gates = config.gates;
+  if (gates.length === 0) {
+    return { pass: false, reason: "config.gates is empty" };
+  }
+  const lastGate = gates[gates.length - 1]!;
+  const currentGate = state.loop.current_gate;
+
+  if (currentGate !== lastGate) {
+    return {
+      pass: false,
+      reason: `current_gate="${currentGate}" but expected last gate "${lastGate}"`,
+    };
+  }
+
+  const passedGates: string[] = [];
+  const missingGates: string[] = [];
+  for (const gate of gates) {
+    const entry = state.checkpoints[gate];
+    if (entry && entry.status === "PASS") {
+      passedGates.push(gate);
+    } else {
+      missingGates.push(gate);
+    }
+  }
+  if (missingGates.length > 0) {
+    return {
+      pass: false,
+      reason: `gates not yet PASS: [${missingGates.join(", ")}] (passed: [${passedGates.join(", ")}])`,
+    };
+  }
+
+  if (runnerOutput === null) {
+    return { pass: false, reason: "no runner output recorded yet" };
+  }
+  if (runnerOutput.gate !== currentGate) {
+    return {
+      pass: false,
+      reason: `stale runner output: runnerOutput.gate="${runnerOutput.gate}" does not match current_gate="${currentGate}"`,
+    };
+  }
+  if (runnerOutput.status !== "PASS") {
+    return {
+      pass: false,
+      reason: `runner status is "${runnerOutput.status}", not PASS`,
+    };
+  }
+  if (
+    runnerOutput.next_gate !== null &&
+    runnerOutput.next_gate !== undefined
+  ) {
+    return {
+      pass: false,
+      reason: `runner returned next_gate="${runnerOutput.next_gate}", expected null`,
+    };
+  }
+
+  return { pass: true, reason: null };
+}
+
+export function detectPromiseTag(
+  messages: Array<{ role: string; content: string }>,
+  completionPromise: string,
+  state: HarnessLoopState,
+  runnerOutput: RunnerOutput | null,
+  config: HarnessConfig
+): PromiseTagResult {
+  const tagPresent = hasPromiseTag(
+    messages,
+    completionPromise,
+    state.loop.message_count_at_start
+  );
+  if (!tagPresent) {
+    return { tagPresent: false, structuralPass: false, reason: null };
+  }
+  const guard = structuralGuard(state, runnerOutput, config);
+  return {
+    tagPresent: true,
+    structuralPass: guard.pass,
+    reason: guard.reason,
+  };
 }
 
 export function detectStructuralCompletion(
@@ -33,23 +129,7 @@ export function detectStructuralCompletion(
   runnerOutput: RunnerOutput | null,
   config: HarnessConfig
 ): boolean {
-  if (runnerOutput === null) {
-    return false;
-  }
-
-  if (runnerOutput.status !== "PASS") {
-    return false;
-  }
-
-  if (runnerOutput.next_gate !== null && runnerOutput.next_gate !== undefined) {
-    return false;
-  }
-
-  const gates = config.gates;
-  const currentGate = state.loop.current_gate;
-  const lastGate = gates[gates.length - 1];
-
-  return currentGate === lastGate;
+  return structuralGuard(state, runnerOutput, config).pass;
 }
 
 export function detectCompletion(
@@ -57,22 +137,40 @@ export function detectCompletion(
   state: HarnessLoopState,
   runnerOutput: RunnerOutput | null,
   config: HarnessConfig
-): CompletionSource {
-  if (
-    detectPromiseTag(
-      messages,
-      config.completion_promise,
-      state.loop.message_count_at_start
-    )
-  ) {
-    return "promise_tag";
+): CompletionResult {
+  const tag = detectPromiseTag(
+    messages,
+    config.completion_promise,
+    state,
+    runnerOutput,
+    config
+  );
+
+  if (tag.tagPresent && tag.structuralPass) {
+    return {
+      source: "promise_tag",
+      liedAboutCompletion: false,
+      lieReason: null,
+    };
   }
 
   if (detectStructuralCompletion(state, runnerOutput, config)) {
-    return "structural";
+    return {
+      source: "structural",
+      liedAboutCompletion: false,
+      lieReason: null,
+    };
   }
 
-  return null;
+  if (tag.tagPresent && !tag.structuralPass) {
+    return {
+      source: null,
+      liedAboutCompletion: true,
+      lieReason: tag.reason,
+    };
+  }
+
+  return { source: null, liedAboutCompletion: false, lieReason: null };
 }
 
 export function detectOverrideToken(

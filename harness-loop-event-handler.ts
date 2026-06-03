@@ -275,20 +275,32 @@ async function processLoopIteration(
   const currentGate = state.loop.current_gate;
   const messages = ctx.getMessages();
 
-  const completionSource = detectCompletion(
+  const completion = detectCompletion(
     messages,
     state,
     state.loop.last_runner_output,
     config
   );
 
-  if (completionSource) {
+  if (completion.source) {
     controller.cancelLoop();
     ctx.showToast(
-      `🎉 Harness loop complete! (${completionSource})`,
+      `🎉 Harness loop complete! (${completion.source})`,
       "info"
     );
-    await ctx.injectMessage(buildCompletionPrompt(completionSource));
+    await ctx.injectMessage(buildCompletionPrompt(completion.source));
+    return;
+  }
+
+  if (completion.liedAboutCompletion) {
+    const lastGate = config.gates[config.gates.length - 1];
+    ctx.showToast(
+      `⚠️ Premature <promise>${config.completion_promise}</promise> rejected: ${completion.lieReason}`,
+      "warning"
+    );
+    await ctx.injectMessage(
+      `[HARNESS] You emitted <promise>${config.completion_promise}</promise> but the loop is not actually complete: ${completion.lieReason}. Expected last gate "${lastGate}". Continue executing gate "${currentGate}" — do NOT emit the completion promise again until all gates have PASSed.`
+    );
     return;
   }
 
