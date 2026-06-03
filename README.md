@@ -67,6 +67,41 @@ EOF
 /harness-on
 ```
 
+## Slash Commands (auto-installed)
+
+When you `npm install oh-my-harness-loop` in a project, a `postinstall` script automatically creates the OpenCode slash-command shims:
+
+- `.opencode/command/harness-on.md`
+- `.opencode/command/harness-off.md`
+
+These shims make `/harness-on` and `/harness-off` appear in OpenCode's autocomplete. The plugin intercepts the commands at runtime via the `command.execute.before` hook.
+
+**The postinstall:**
+- Never overwrites existing files — if you customize the shims, they're preserved.
+- Fails silently — install never breaks even if shim creation errors.
+- Can be disabled: set `OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL=1` before installing.
+
+If you skip the postinstall (or it failed), create the shims manually:
+
+```bash
+mkdir -p .opencode/command
+cat > .opencode/command/harness-on.md <<'EOF'
+---
+description: Start the harness gate loop for the current feature
+---
+
+$ARGUMENTS
+EOF
+
+cat > .opencode/command/harness-off.md <<'EOF'
+---
+description: Cancel the active harness gate loop
+---
+EOF
+```
+
+Then restart OpenCode for the commands to appear in autocomplete.
+
 ## Configuration Reference
 
 | Field | Type | Default | Description |
