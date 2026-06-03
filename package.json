@@ -1,5 +1,5 @@
 {
-  "name": "oh-my-harness",
+  "name": "@nano-step/oh-my-harness",
   "version": "1.0.0",
   "description": "Autonomous harness loop OpenCode plugin — gate-driven development workflow",
   "type": "module",

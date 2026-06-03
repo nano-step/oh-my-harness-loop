@@ -10,11 +10,11 @@ The harness loop plugin automates your development workflow by driving your proj
 
 ```bash
 # 1. Install the package
-npm install oh-my-harness@latest
+npm install @nano-step/oh-my-harness@latest
 
 # 2. Register in .opencode/opencode.json
 mkdir -p .opencode
-echo '{"plugin":["oh-my-harness@latest"]}' > .opencode/opencode.json
+echo '{"plugin":["@nano-step/oh-my-harness@latest"]}' > .opencode/opencode.json
 ```
 
 Then **restart OpenCode** (so the slash-command shims are loaded) and run:
@@ -43,7 +43,7 @@ The templates ship with a **no-op stub runner** (every gate returns PASS). Edit 
 
 ## Slash Commands (auto-installed)
 
-When you `npm install oh-my-harness` in a project, a `postinstall` script automatically creates the OpenCode slash-command shims:
+When you `npm install @nano-step/oh-my-harness` in a project, a `postinstall` script automatically creates the OpenCode slash-command shims:
 
 - `.opencode/commands/harness-on.md`
 - `.opencode/commands/harness-off.md`

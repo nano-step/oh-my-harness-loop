@@ -2,7 +2,7 @@
 
 A complete walkthrough from a fresh project (no harness setup yet) to a working `/harness-on` loop. Takes ~10 minutes.
 
-If you prefer letting an AI agent do this for you, just ask: **"setup harness-on"**. The agent will read `node_modules/oh-my-harness/docs/SETUP_INSTRUCTIONS_FOR_AGENT.md` and walk through the steps below. Skip to "Customize for your project" once it's done.
+If you prefer letting an AI agent do this for you, just ask: **"setup harness-on"**. The agent will read `node_modules/@nano-step/oh-my-harness/docs/SETUP_INSTRUCTIONS_FOR_AGENT.md` and walk through the steps below. Skip to "Customize for your project" once it's done.
 
 ---
 
@@ -32,7 +32,7 @@ Each gate is a check (your script decides PASS/FAIL/etc.). When all five pass, t
 
 ```bash
 cd /path/to/your/project
-npm install oh-my-harness@latest
+npm install @nano-step/oh-my-harness@latest
 ```
 
 This installs the plugin **and** runs a postinstall script that creates `.opencode/commands/harness-on.md` and `.opencode/commands/harness-off.md` shims so the slash commands appear in OpenCode's autocomplete.
@@ -46,7 +46,7 @@ ls .opencode/commands/ | grep harness
 #   harness-on.md
 ```
 
-If the shims are missing, the postinstall failed silently. Re-run `npm install oh-my-harness@latest`, or create the files manually (see [README §Slash Commands](../README.md#slash-commands-auto-installed)).
+If the shims are missing, the postinstall failed silently. Re-run `npm install @nano-step/oh-my-harness@latest`, or create the files manually (see [README §Slash Commands](../README.md#slash-commands-auto-installed)).
 
 ---
 
@@ -56,7 +56,7 @@ If your project already has `.opencode/opencode.json`:
 
 ```jsonc
 {
-  "plugin": ["oh-my-harness@latest"]
+  "plugin": ["@nano-step/oh-my-harness@latest"]
 }
 ```
 
@@ -67,7 +67,7 @@ mkdir -p .opencode
 cat > .opencode/opencode.json <<'EOF'
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["oh-my-harness@latest"]
+  "plugin": ["@nano-step/oh-my-harness@latest"]
 }
 EOF
 ```
@@ -78,23 +78,23 @@ EOF
 
 ## Step 3 — Copy the templates
 
-The package ships starter templates at `node_modules/oh-my-harness/templates/init/`. Copy them into your project:
+The package ships starter templates at `node_modules/@nano-step/oh-my-harness/templates/init/`. Copy them into your project:
 
 ```bash
 # Config
-cp node_modules/oh-my-harness/templates/init/.opencode/harness.config.json .opencode/
+cp node_modules/@nano-step/oh-my-harness/templates/init/.opencode/harness.config.json .opencode/
 
 # Runner stub
 mkdir -p scripts
-cp node_modules/oh-my-harness/templates/init/scripts/harness-check.sh scripts/
+cp node_modules/@nano-step/oh-my-harness/templates/init/scripts/harness-check.sh scripts/
 chmod +x scripts/harness-check.sh
 
 # Gate docs (one per gate)
 mkdir -p docs/harness/gates
-cp node_modules/oh-my-harness/templates/init/docs/harness/gates/*.md docs/harness/gates/
+cp node_modules/@nano-step/oh-my-harness/templates/init/docs/harness/gates/*.md docs/harness/gates/
 
 # .gitignore additions (template is named .template because npm strips dotfiles from packages)
-cat node_modules/oh-my-harness/templates/init/gitignore.template >> .gitignore
+cat node_modules/@nano-step/oh-my-harness/templates/init/gitignore.template >> .gitignore
 ```
 
 ---
