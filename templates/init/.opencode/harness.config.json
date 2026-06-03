@@ -1,0 +1,36 @@
+{
+  "runner_path": "./scripts/harness-check.sh",
+  "gates": ["pre-work", "in-progress", "pre-merge", "post-merge", "next-ready"],
+  "fail_policy": "hybrid",
+  "rule_id_format": "R{id}",
+  "max_iterations_per_gate": 10,
+  "max_total_iterations": 100,
+  "auto_fix_attempts": 3,
+  "cache_ttl_minutes": 30,
+  "runner_timeout_seconds": 300,
+  "completion_promise": "HARNESS-COMPLETE",
+  "strict_instructions": false,
+  "state_file_path": ".opencode/harness-loop.local.json",
+  "gate_instructions": {
+    "pre-work": {
+      "doc": "docs/harness/gates/pre-work.md",
+      "skills": []
+    },
+    "in-progress": {
+      "doc": "docs/harness/gates/in-progress.md",
+      "skills": []
+    },
+    "pre-merge": {
+      "doc": "docs/harness/gates/pre-merge.md",
+      "skills": []
+    },
+    "post-merge": {
+      "doc": "docs/harness/gates/post-merge.md",
+      "skills": []
+    },
+    "next-ready": {
+      "doc": "docs/harness/gates/next-ready.md",
+      "skills": []
+    }
+  }
+}
