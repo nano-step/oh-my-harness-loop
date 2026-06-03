@@ -8,8 +8,8 @@ This document tells you exactly which files to create in the user's project so t
 
 1. Confirm `oh-my-harness` is in the project's plugin list:
    - Read `.opencode/opencode.json` if it exists.
-   - If `plugin` array does not contain `oh-my-harness@latest`, ask the user before proceeding.
-2. Confirm the package is installed at the expected location (`node_modules/oh-my-harness/` exists). If not, run `npm install oh-my-harness@latest`.
+   - If `plugin` array does not contain `@nano-step/oh-my-harness@latest`, ask the user before proceeding.
+2. Confirm the package is installed at the expected location (`node_modules/@nano-step/oh-my-harness/` exists). If not, run `npm install @nano-step/oh-my-harness@latest`.
 3. Confirm `.opencode/commands/harness-on.md` and `.opencode/commands/harness-off.md` exist (these are auto-created by the package's postinstall — if missing, suggest reinstalling).
 4. Check whether the project already has any of these (ask before overwriting):
    - `.opencode/harness.config.json`
@@ -19,29 +19,29 @@ This document tells you exactly which files to create in the user's project so t
 
 ## Files to create
 
-The template lives at `node_modules/oh-my-harness/templates/init/`. Copy from there into the project root.
+The template lives at `node_modules/@nano-step/oh-my-harness/templates/init/`. Copy from there into the project root.
 
 ### 1. `.opencode/harness.config.json`
-Source: `node_modules/oh-my-harness/templates/init/.opencode/harness.config.json`
+Source: `node_modules/@nano-step/oh-my-harness/templates/init/.opencode/harness.config.json`
 - Standard 5 gates: `pre-work`, `in-progress`, `pre-merge`, `post-merge`, `next-ready`.
 - `fail_policy: "hybrid"`, `runner_path: "./scripts/harness-check.sh"`.
 - `state_file_path: ".opencode/harness-loop.local.json"`.
 - Adjust paths if the project's runner lives elsewhere — ASK the user first.
 
 ### 2. `scripts/harness-check.sh`
-Source: `node_modules/oh-my-harness/templates/init/scripts/harness-check.sh`
+Source: `node_modules/@nano-step/oh-my-harness/templates/init/scripts/harness-check.sh`
 - Generic stub: every gate returns PASS with `"checks":[]`.
 - `chmod +x scripts/harness-check.sh` after copying.
 - Tell the user: "This is a placeholder runner. Each gate function is a stub — fill in real checks (tsc, vitest, lint, etc.) according to your project's needs. See `docs/harness/gates/*.md` for what each gate should validate."
 
 ### 3. `docs/harness/gates/{pre-work,in-progress,pre-merge,post-merge,next-ready}.md`
-Source: `node_modules/oh-my-harness/templates/init/docs/harness/gates/`
+Source: `node_modules/@nano-step/oh-my-harness/templates/init/docs/harness/gates/`
 - 5 markdown files, one per gate.
 - Each has placeholders the user must fill in (Hard Rules, Procedure, Evidence, FAIL Conditions).
 - These are *referenced* by `gate_instructions` in `harness.config.json` so the agent sees them when working on each gate.
 
 ### 4. `.gitignore` additions
-Source: `node_modules/oh-my-harness/templates/init/gitignore.template`
+Source: `node_modules/@nano-step/oh-my-harness/templates/init/gitignore.template`
 - **Append** these lines to the existing `.gitignore` (do not overwrite). (npm strips dotfiles from packages, so the template is shipped as `gitignore.template`.)
   ```
   .opencode/harness-loop.local.json
@@ -72,9 +72,9 @@ If all 4 verifications pass, tell the user:
 Tell the user (in order of priority):
 1. **Edit `scripts/harness-check.sh`** to add real checks for each gate. Most projects only need to fill in `gate_pre_merge` (the validation ladder).
 2. **Edit gate docs** at `docs/harness/gates/*.md` — they're the agent's instructions for each gate.
-3. **Optional**: enable epic mode in `harness.config.json` if running multi-story workflows. See `node_modules/oh-my-harness/README.md#epic-mode`.
+3. **Optional**: enable epic mode in `harness.config.json` if running multi-story workflows. See `node_modules/@nano-step/oh-my-harness/README.md#epic-mode`.
 4. Run `/harness-on` and check that the loop drives end-to-end through all 5 gates (since the stub returns PASS everywhere, this should reach `next-ready` and emit `HARNESS-COMPLETE` immediately).
 
 ## Reference
 
-Full user-facing walkthrough: `node_modules/oh-my-harness/docs/GETTING_STARTED.md`
+Full user-facing walkthrough: `node_modules/@nano-step/oh-my-harness/docs/GETTING_STARTED.md`
