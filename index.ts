@@ -11,9 +11,11 @@ import {
   type HarnessOnContext,
 } from "./commands/harness-on.js";
 import { handleHarnessOff, type HarnessOffContext } from "./commands/harness-off.js";
+import { handleHarnessInit, type HarnessInitContext } from "./commands/harness-init.js";
+import { handleHarnessCheck, type HarnessCheckContext } from "./commands/harness-check.js";
 import type { HarnessLoopState } from "./types.js";
 
-const PLUGIN_VERSION = "0.1.0";
+const PLUGIN_VERSION = "1.0.0";
 let versionLogged = false;
 
 async function fetchMessages(
@@ -93,6 +95,46 @@ function buildHarnessOffContext(
   };
 }
 
+function buildHarnessInitContext(
+  input: PluginInput,
+  sessionID: string
+): HarnessInitContext {
+  return {
+    projectRoot: input.directory,
+    showToast: (message: string, variant: "info" | "warning" | "error") => {
+      void input.client.tui.showToast({
+        body: { message, variant },
+      });
+    },
+    injectMessage: async (text: string) => {
+      await input.client.session.prompt({
+        path: { id: sessionID },
+        body: { parts: [{ type: "text", text }] },
+      });
+    },
+  };
+}
+
+function buildHarnessCheckContext(
+  input: PluginInput,
+  sessionID: string
+): HarnessCheckContext {
+  return {
+    projectRoot: input.directory,
+    showToast: (message: string, variant: "info" | "warning" | "error") => {
+      void input.client.tui.showToast({
+        body: { message, variant },
+      });
+    },
+    injectMessage: async (text: string) => {
+      await input.client.session.prompt({
+        path: { id: sessionID },
+        body: { parts: [{ type: "text", text }] },
+      });
+    },
+  };
+}
+
 const HarnessLoopPlugin: Plugin = async (input: PluginInput): Promise<Hooks> => {
   if (!versionLogged) {
     console.log(`[harness-loop] Plugin loaded v${PLUGIN_VERSION}`);
@@ -153,8 +195,23 @@ const HarnessLoopPlugin: Plugin = async (input: PluginInput): Promise<Hooks> => 
       }
 
       if (command === "harness-off") {
+        const args = argsStr ? argsStr.trim().split(/\s+/) : [];
         const ctx = buildHarnessOffContext(input);
-        await handleHarnessOff(ctx);
+        await handleHarnessOff(ctx, args);
+        return;
+      }
+
+      if (command === "harness-init") {
+        const ctx = buildHarnessInitContext(input, sessionID);
+        await handleHarnessInit(ctx);
+        return;
+      }
+
+      if (command === "harness-check") {
+        const args = argsStr ? argsStr.trim().split(/\s+/) : [];
+        const ctx = buildHarnessCheckContext(input, sessionID);
+        await handleHarnessCheck(ctx, args);
+        return;
       }
     },
   };

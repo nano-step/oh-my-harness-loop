@@ -1,4 +1,4 @@
-# Feature Intake — oh-my-harness-loop
+# Feature Intake — oh-my-harness
 
 Use this checklist when a new issue/request arrives. Count the flags to determine lane.
 

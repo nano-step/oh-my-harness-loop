@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Opt-out
-if (process.env.OH_MY_HARNESS_LOOP_SKIP_POSTINSTALL === "1") {
+if (process.env.OH_MY_HARNESS_SKIP_POSTINSTALL === "1") {
   process.exit(0);
 }
 
@@ -33,7 +33,7 @@ if (!rawInitCwd) {
 const initCwd =
   basename(rawInitCwd) === ".opencode" ? dirname(rawInitCwd) : rawInitCwd;
 
-// __dirname points to the installed package dir (e.g. node_modules/oh-my-harness-loop/scripts/)
+// __dirname points to the installed package dir (e.g. node_modules/oh-my-harness/scripts/)
 // If INIT_CWD is the same as our package parent (going up from scripts/ to package root),
 // we're in dev-install mode (running npm install inside this repo itself).
 const packageRoot = join(__dirname, "..");
@@ -49,7 +49,17 @@ const SHIMS = [
   },
   {
     relPath: ".opencode/commands/harness-off.md",
-    content: "---\ndescription: Cancel the active harness gate loop\n---\n",
+    content: "---\ndescription: Cancel the active harness gate loop\n---\n\n$ARGUMENTS\n",
+  },
+  {
+    relPath: ".opencode/commands/harness-init.md",
+    content:
+      "---\ndescription: Bootstrap harness setup in the current project (interactive)\n---\n",
+  },
+  {
+    relPath: ".opencode/commands/harness-check.md",
+    content:
+      "---\ndescription: Manually run a single gate via the configured runner (read-only)\n---\n\n$ARGUMENTS\n",
   },
 ];
 
@@ -105,26 +115,26 @@ try {
   }
   if (migrated.length > 0) {
     console.log(
-      "[oh-my-harness-loop] Migrated " +
+      "[oh-my-harness] Migrated " +
         migrated.length +
         " legacy shim file(s) from v2026.6.0303 layout (.opencode/command/) — see commit history for details."
     );
   }
   if (created > 0) {
     console.log(
-      "[oh-my-harness-loop] Created " +
+      "[oh-my-harness] Created " +
         created +
         " slash-command shim(s) in " +
         join(initCwd, ".opencode/commands") +
         " (" +
         skipped +
-        " already present). Restart OpenCode to use /harness-on and /harness-off."
+        " already present). Restart OpenCode to use /harness-on, /harness-off, /harness-init, /harness-check."
     );
   }
 } catch (err) {
   // Never break the install
   console.warn(
-    "[oh-my-harness-loop] postinstall: could not create slash-command shims: " +
+    "[oh-my-harness] postinstall: could not create slash-command shims: " +
       (err && err.message ? err.message : String(err)) +
       ". You can create them manually — see README."
   );

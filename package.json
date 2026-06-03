@@ -1,6 +1,6 @@
 {
-  "name": "oh-my-harness-loop",
-  "version": "0.0.0-dev",
+  "name": "oh-my-harness",
+  "version": "1.0.0",
   "description": "Autonomous harness loop OpenCode plugin — gate-driven development workflow",
   "type": "module",
   "main": "dist/index.js",
@@ -40,11 +40,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nano-step/oh-my-harness-loop.git"
+    "url": "https://github.com/nano-step/oh-my-harness.git"
   },
-  "homepage": "https://github.com/nano-step/oh-my-harness-loop#readme",
+  "homepage": "https://github.com/nano-step/oh-my-harness#readme",
   "bugs": {
-    "url": "https://github.com/nano-step/oh-my-harness-loop/issues"
+    "url": "https://github.com/nano-step/oh-my-harness/issues"
   },
   "keywords": [
     "opencode",

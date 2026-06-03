@@ -1,4 +1,4 @@
-# Harness Friction Backlog — oh-my-harness-loop
+# Harness Friction Backlog — oh-my-harness
 
 Track recurring friction points. Review after each retro.
 
