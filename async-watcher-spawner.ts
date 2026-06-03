@@ -61,14 +61,37 @@ export async function spawnWatcher(
   return ctx.spawnBackgroundTask(subagentType, prompt);
 }
 
+function extractJsonCandidates(text: string): string[] {
+  const candidates: string[] = [];
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "{") {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0 && start !== -1) {
+        candidates.push(text.slice(start, i + 1));
+        start = -1;
+      } else if (depth < 0) {
+        depth = 0;
+        start = -1;
+      }
+    }
+  }
+  return candidates;
+}
+
 export function parseWatcherResult(
   result: string,
   gate: string
 ): RunnerOutput {
   const trimmed = result.trim();
+  const candidates = extractJsonCandidates(trimmed);
 
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  if (candidates.length === 0) {
     return {
       gate,
       status: "ERROR",
@@ -78,28 +101,38 @@ export function parseWatcherResult(
     };
   }
 
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    const validated = RunnerOutputSchema.safeParse(parsed);
-
-    if (!validated.success) {
-      return {
-        gate,
-        status: "ERROR",
-        checks: [],
-        rule_ids_violated: ["watcher-schema-error"],
-        instructions_for_agent: `Watcher returned invalid schema: ${validated.error.message}`,
-      };
+  let lastSchemaError: string | null = null;
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(candidates[i]!);
+    } catch {
+      continue;
     }
+    const validated = RunnerOutputSchema.safeParse(parsed);
+    if (validated.success) {
+      return validated.data;
+    }
+    lastSchemaError = validated.error.message;
+  }
 
-    return validated.data;
-  } catch (e) {
+  if (lastSchemaError !== null) {
     return {
       gate,
       status: "ERROR",
       checks: [],
-      rule_ids_violated: ["watcher-parse-error"],
-      instructions_for_agent: `Failed to parse watcher result: ${e instanceof Error ? e.message : String(e)}`,
+      rule_ids_violated: ["watcher-schema-error"],
+      instructions_for_agent: `Watcher returned invalid schema: ${lastSchemaError}`,
     };
   }
+
+  return {
+    gate,
+    status: "ERROR",
+    checks: [],
+    rule_ids_violated: ["watcher-parse-error"],
+    instructions_for_agent: "Watcher returned non-JSON output",
+  };
 }
+
+
