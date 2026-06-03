@@ -179,3 +179,86 @@ describe("buildContinuationPrompt — BLOCKED status", () => {
     expect(prompt).toContain("in-progress");
   });
 });
+
+describe("OH-MY-OPENCODE-style continuation format (issue #21)", () => {
+  it("FAIL prompt has OH-MY-HARNESS-LOOP header", () => {
+    const config = makeConfig();
+    const state = makeState();
+    const output = makeRunnerOutput({ gate: "pre-work", status: "FAIL" });
+
+    const prompt = buildContinuationPrompt(state, output, config, projectRoot);
+
+    expect(prompt).toContain("[SYSTEM DIRECTIVE: OH-MY-HARNESS-LOOP");
+    expect(prompt).toContain("GATE CONTINUATION");
+  });
+
+  it("FAIL prompt has imperative bullets", () => {
+    const config = makeConfig();
+    const state = makeState();
+    const output = makeRunnerOutput({ gate: "pre-work", status: "FAIL" });
+
+    const prompt = buildContinuationPrompt(state, output, config, projectRoot);
+
+    expect(prompt).toContain("Proceed without asking for permission");
+    expect(prompt).toContain("Do not stop until");
+  });
+
+  it("FAIL prompt has skeptical re-verify guidance referencing state file", () => {
+    const config = makeConfig();
+    const state = makeState();
+    const output = makeRunnerOutput({ gate: "pre-work", status: "FAIL" });
+
+    const prompt = buildContinuationPrompt(state, output, config, projectRoot);
+
+    expect(prompt).toContain("questioning your completion claim");
+    expect(prompt).toContain("harness-loop.local.json");
+  });
+
+  it("FAIL prompt includes machine-readable [Status: ...] line", () => {
+    const config = makeConfig({
+      gates: ["pre-work", "in-progress", "pre-merge"],
+    });
+    const state = makeState({
+      current_gate: "pre-work",
+      gate_iteration: 2,
+      total_iteration: 5,
+    });
+    const output = makeRunnerOutput({ gate: "pre-work", status: "FAIL" });
+
+    const prompt = buildContinuationPrompt(state, output, config, projectRoot);
+
+    expect(prompt).toMatch(
+      /\[Status: \d+\/3 gates passed, \d+ remaining \| gate "pre-work" iter=2\/10 \| total=5\/100\]/
+    );
+  });
+
+  it("BLOCKED prompt instructs agent NOT to emit completion promise", () => {
+    const config = makeConfig();
+    const state = makeState();
+    const output = makeRunnerOutput({ gate: "pre-work", status: "BLOCKED" });
+
+    const prompt = buildContinuationPrompt(state, output, config, projectRoot);
+
+    expect(prompt).toContain("Do NOT emit completion promise");
+    expect(prompt).toContain("OH-MY-HARNESS-LOOP - GATE BLOCKED");
+  });
+
+  it("Status line reflects gates_passed count from checkpoints", () => {
+    const config = makeConfig({
+      gates: ["pre-work", "in-progress", "pre-merge"],
+    });
+    const checkedAt = new Date().toISOString();
+    const state = makeState({
+      current_gate: "pre-merge",
+    });
+    state.checkpoints = {
+      "pre-work": { status: "PASS", checked_at: checkedAt, checks: {} },
+      "in-progress": { status: "PASS", checked_at: checkedAt, checks: {} },
+    };
+    const output = makeRunnerOutput({ gate: "pre-merge", status: "FAIL" });
+
+    const prompt = buildContinuationPrompt(state, output, config, projectRoot);
+
+    expect(prompt).toContain("[Status: 2/3 gates passed, 1 remaining");
+  });
+});
