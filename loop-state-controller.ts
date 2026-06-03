@@ -249,12 +249,14 @@ export function createLoopStateController(
       return;
     }
 
+    const canonicalized = [...ruleIds].sort();
+
     updateLoop((loop) => {
       if (!loop.same_error_history[gate]) {
         loop.same_error_history[gate] = [];
       }
 
-      loop.same_error_history[gate].push(ruleIds);
+      loop.same_error_history[gate].push(canonicalized);
 
       if (loop.same_error_history[gate].length > SAME_ERROR_HISTORY_WINDOW) {
         loop.same_error_history[gate] = loop.same_error_history[gate].slice(

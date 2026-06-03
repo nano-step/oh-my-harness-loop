@@ -4,7 +4,9 @@ import {
   renameSync,
   existsSync,
   mkdirSync,
+  unlinkSync,
 } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { openSync, closeSync, fsyncSync } from "node:fs";
 import {
@@ -25,17 +27,26 @@ function ensureDir(filePath: string): void {
 function atomicWriteFile(filePath: string, content: string): void {
   ensureDir(filePath);
 
-  const tmpPath = `${filePath}.tmp.${process.pid}`;
+  const tmpPath = `${filePath}.tmp.${randomUUID()}`;
 
-  const fd = openSync(tmpPath, "w", 0o644);
   try {
-    writeFileSync(fd, content, "utf-8");
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
+    const fd = openSync(tmpPath, "w", 0o644);
+    try {
+      writeFileSync(fd, content, "utf-8");
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
 
-  renameSync(tmpPath, filePath);
+    renameSync(tmpPath, filePath);
+  } catch (e) {
+    if (existsSync(tmpPath)) {
+      try {
+        unlinkSync(tmpPath);
+      } catch {}
+    }
+    throw e;
+  }
 }
 
 export function getStatePath(projectRoot: string, customPath?: string): string {
