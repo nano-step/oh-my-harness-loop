@@ -9,11 +9,14 @@ import {
   SAME_ERROR_HISTORY_WINDOW,
 } from "./constants.js";
 import type {
+  Backlog,
   HarnessConfig,
   HarnessLoopState,
   LoopMeta,
   RunnerOutput,
 } from "./types.js";
+import { topologicalSort } from "./topological-sort.js";
+import { DEFAULT_MAX_ITERATIONS_PER_EPIC } from "./constants.js";
 
 export class LoopAlreadyActiveError extends Error {
   constructor(
@@ -36,9 +39,12 @@ export interface LoopStateController {
     featureId?: string,
     issueNumber?: number,
     story?: string,
-    messageCountAtStart?: number
+    messageCountAtStart?: number,
+    epicBacklog?: Backlog
   ): HarnessLoopState;
-  cancelLoop(): void;
+  cancelLoop(opts?: { clean?: boolean }): void;
+  completeStoryAndAdvance(): { nextStoryId: string } | null;
+  pauseEpicForFailure(reason: string): void;
   incrementGateIteration(): void;
   incrementTotalIteration(): void;
   transitionToGate(nextGate: string): void;
@@ -74,7 +80,8 @@ export function createLoopStateController(
     featureId?: string,
     issueNumber?: number,
     story?: string,
-    messageCountAtStart = 0
+    messageCountAtStart = 0,
+    epicBacklog?: Backlog
   ): HarnessLoopState {
     let state = getState();
 
@@ -121,14 +128,43 @@ export function createLoopStateController(
       message_count_at_start: messageCountAtStart,
     };
 
+    if (epicBacklog) {
+      const sorted = topologicalSort(epicBacklog.stories);
+      const sortedBacklog: Backlog = { ...epicBacklog, stories: sorted };
+      const firstStory = sorted[0]!;
+
+      loopMeta.epic = {
+        enabled: true,
+        epic_id: epicBacklog.epic_id,
+        current_story_id: firstStory.id,
+        story_progress: [
+          {
+            story_id: firstStory.id,
+            status: "in_progress",
+            started_at: new Date().toISOString(),
+          },
+        ],
+        backlog_snapshot: sortedBacklog,
+        failure_policy: "ask",
+        max_iterations_per_epic:
+          config.epic?.max_iterations_per_epic ?? DEFAULT_MAX_ITERATIONS_PER_EPIC,
+        epic_iteration_total: 0,
+      };
+
+      state.feature_id = firstStory.feature_id ?? null;
+      state.issue_number = firstStory.issue_number ?? null;
+      state.story = firstStory.story ?? null;
+      state.checkpoints = {};
+    }
+
     state.loop = loopMeta;
     writeState(statePath, state);
 
     return state;
   }
 
-  function cancelLoop(): void {
-    clearLoopBlock(statePath);
+  function cancelLoop(opts?: { clean?: boolean }): void {
+    clearLoopBlock(statePath, opts);
   }
 
   function updateLoop(updater: (loop: LoopMeta) => void): void {
@@ -267,11 +303,98 @@ export function createLoopStateController(
     });
   }
 
+  function completeStoryAndAdvance(): { nextStoryId: string } | null {
+    const state = getState();
+    if (!state?.loop.active || !state.loop.epic?.enabled) return null;
+
+    const epic = state.loop.epic;
+    const completedAt = new Date().toISOString();
+
+    const currentEntry = epic.story_progress.find(
+      (e) => e.story_id === epic.current_story_id
+    );
+    if (currentEntry) {
+      currentEntry.status = "completed";
+      currentEntry.completed_at = completedAt;
+      currentEntry.gate_reached = state.loop.current_gate;
+    }
+
+    if (epic.epic_iteration_total >= epic.max_iterations_per_epic) {
+      pauseEpicForFailure("max_iterations_per_epic exceeded");
+      return null;
+    }
+
+    const finishedIds = new Set(
+      epic.story_progress
+        .filter((e) => e.status === "completed")
+        .map((e) => e.story_id)
+    );
+    const blockedIds = new Set(
+      epic.story_progress
+        .filter((e) => ["failed", "blocked", "skipped"].includes(e.status))
+        .map((e) => e.story_id)
+    );
+
+    const nextStory = epic.backlog_snapshot.stories.find(
+      (s) =>
+        !finishedIds.has(s.id) &&
+        !blockedIds.has(s.id) &&
+        s.id !== epic.current_story_id &&
+        s.depends_on.every((d) => finishedIds.has(d))
+    );
+
+    if (!nextStory) {
+      writeState(statePath, state);
+      return null;
+    }
+
+    state.loop.gate_iteration = 1;
+    state.loop.current_gate = state.loop.config_snapshot.gates[0]!;
+    state.loop.no_progress_count = 0;
+    state.loop.same_error_history = {};
+    state.loop.parallel_watchers = {};
+    state.loop.last_runner_output = null;
+    state.loop.verification_pending = false;
+
+    state.loop.epic.epic_iteration_total += 1;
+
+    state.loop.epic.current_story_id = nextStory.id;
+    state.loop.epic.story_progress.push({
+      story_id: nextStory.id,
+      status: "in_progress",
+      started_at: completedAt,
+    });
+
+    state.feature_id = nextStory.feature_id ?? null;
+    state.issue_number = nextStory.issue_number ?? null;
+    state.story = nextStory.story ?? null;
+    state.checkpoints = {};
+
+    writeState(statePath, state);
+    return { nextStoryId: nextStory.id };
+  }
+
+  function pauseEpicForFailure(_reason: string): void {
+    const state = getState();
+    if (!state?.loop.epic) return;
+    const entry = state.loop.epic.story_progress.find(
+      (e) => e.story_id === state.loop.epic!.current_story_id
+    );
+    if (entry) {
+      entry.status = "failed";
+      entry.gate_reached = state.loop.current_gate;
+    }
+    state.loop.active = false;
+    writeState(statePath, state);
+  }
+
   return {
     getState,
     isActive,
     startLoop,
     cancelLoop,
+    completeStoryAndAdvance,
+    pauseEpicForFailure,
     incrementGateIteration,
     incrementTotalIteration,
     transitionToGate,

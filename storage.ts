@@ -118,7 +118,10 @@ export function writeState(statePath: string, state: HarnessLoopState): void {
   atomicWriteFile(statePath, content);
 }
 
-export function clearLoopBlock(statePath: string): void {
+export function clearLoopBlock(
+  statePath: string,
+  opts?: { clean?: boolean }
+): void {
   const state = readState(statePath);
   if (state === null) {
     return;
@@ -133,24 +136,7 @@ export function clearLoopBlock(statePath: string): void {
     max_total_iterations: 0,
     started_at: "",
     session_id: "",
-    config_snapshot: {
-      runner_path: "",
-      gates: [],
-      fail_policy: "hybrid",
-      rule_id_format: "{id}",
-      max_total_iterations: 100,
-      max_iterations_per_gate: 10,
-      auto_fix_attempts: 3,
-      cache_ttl_minutes: 30,
-      runner_timeout_seconds: 300,
-      completion_promise: "HARNESS-COMPLETE",
-      ultrawork_verify_gates: [],
-      state_file_path: DEFAULT_STATE_FILE_PATH,
-      gate_instructions: {},
-      phase_hooks: {},
-      strict_instructions: false,
-      async_heartbeats: true,
-    },
+    config_snapshot: state.loop.config_snapshot,
     last_runner_output: null,
     no_progress_count: 0,
     override_active: false,
@@ -159,6 +145,10 @@ export function clearLoopBlock(statePath: string): void {
     parallel_watchers: {},
     message_count_at_start: 0,
   };
+
+  if (!opts?.clean && state.loop.epic) {
+    clearedLoop.epic = state.loop.epic;
+  }
 
   const newState: HarnessLoopState = {
     ...state,

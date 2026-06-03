@@ -239,6 +239,90 @@ The loop pauses and waits for user approval before continuing.
 ```
 The config is merged once at loop start and the file is auto-deleted when the loop ends.
 
+## Epic Mode (v306+)
+
+Drive every story in a multi-story backlog through the gate cycle with a single `/harness-on --epic` invocation. The plugin advances stories automatically, pauses on failure for operator input (`ask` policy), and persists progress for `--resume`.
+
+### Backlog file schema
+
+`.opencode/harness.epic.json`:
+
+```json
+{
+  "epic_id": "EPIC-24",
+  "title": "Postgres migration",
+  "stories": [
+    {
+      "id": "STORY-24-0",
+      "title": "PG governance setup",
+      "feature_id": "feat/24-0-pg-governance",
+      "issue_number": 240,
+      "story": "Set up governance for the Postgres migration ...",
+      "depends_on": []
+    },
+    {
+      "id": "STORY-24-1",
+      "title": "PG Alembic baseline",
+      "feature_id": "feat/24-1-pg-alembic-baseline",
+      "depends_on": ["STORY-24-0"]
+    }
+  ]
+}
+```
+
+Required fields: `id`, `title`. Optional: `feature_id`, `issue_number`, `story`, `depends_on` (defaults to `[]`).
+
+### Config
+
+Add to `harness.config.json`:
+
+```json
+{
+  "epic": {
+    "backlog_source": "file",
+    "backlog_file": ".opencode/harness.epic.json",
+    "failure_policy": "ask",
+    "max_iterations_per_epic": 500
+  }
+}
+```
+
+The `epic` block is **optional**. Without it, single-story mode works exactly as v305.
+
+### Usage
+
+| Command | Behavior |
+|---------|----------|
+| `/harness-on` | Single-story mode (unchanged) |
+| `/harness-on --epic` | Epic mode, default backlog from config |
+| `/harness-on --epic=<path>` | Epic mode, custom backlog file |
+| `/harness-on --epic --resume` | Resume from preserved epic state |
+| `/harness-off` | Preserve epic state (resume-able) |
+| `/harness-off --clean` | Full wipe (legacy v305 behavior) |
+
+### Story dependencies
+
+`depends_on` is an array of story IDs that must complete before this story is eligible. The plugin topo-sorts at start; cycles and missing references fail loud.
+
+### Failure handling
+
+Phase 1 supports only `failure_policy: "ask"` — when any story exhausts `max_iterations_per_gate`, the epic pauses and waits for `/harness-on --epic --resume`.
+
+Phase 2 will add `"skip"` and `"abort"`.
+
+### Observability
+
+Per-story toasts:
+
+```
+🚀 Epic "EPIC-24" started: 5 stories. First: "STORY-24-0".
+✅ Story "STORY-24-2" done → next "STORY-24-3" (3/5)
+⏸️ Story "STORY-24-2" PAUSED at gate "pre-merge". Use /harness-on --epic --resume after fix.
+🏆 Epic "EPIC-24" complete! 5/5 stories done.
+```
+
+Full audit trail in `state.loop.epic.story_progress` array (state file).
+
 ## Gate Instructions Config
 
 The `gate_instructions` field maps each gate name to a doc path and optional skill list. The plugin reads the doc at loop start and prepends it to the agent's context for that gate.

@@ -18,6 +18,8 @@ import { hasRepeatedSameError } from "./same-error-detector.js";
 import { resolveGateInstructions } from "./gate-instructions-resolver.js";
 import { buildCompletionPrompt } from "./templates/continuation-prompt.js";
 import { buildUltraworkVerificationPrompt } from "./templates/ultrawork-verification.js";
+import { buildEpicStoryPrompt } from "./templates/epic-story-prompt.js";
+import { buildEpicCompletionPrompt } from "./templates/epic-completion-prompt.js";
 import { collectWatcherResult } from "./async-watcher-result-handler.js";
 import {
   RunnerOutputSchema,
@@ -327,6 +329,18 @@ async function processLoopIteration(
   }
 
   if (state.loop.gate_iteration >= state.loop.max_iterations_per_gate) {
+    if (state.loop.epic?.enabled && state.loop.epic.failure_policy === "ask") {
+      const currentStoryId = state.loop.epic.current_story_id;
+      controller.pauseEpicForFailure(
+        `max gate iterations exceeded on ${currentGate}`
+      );
+      ctx.showToast(
+        `⏸️ Story "${currentStoryId}" PAUSED at gate "${currentGate}". Use /harness-on --epic --resume after fix.`,
+        "warning"
+      );
+      return;
+    }
+
     const failPolicy = config.fail_policy;
 
     if (failPolicy === "ask" || failPolicy === "hybrid") {
@@ -547,6 +561,35 @@ async function handleRunnerOutput(
       if (nextGate) {
         controller.transitionToGate(nextGate);
         ctx.showToast(`✓ Gate "${currentGate}" PASS → ${nextGate}`, "info");
+      } else if (state.loop.epic?.enabled) {
+        const prevId = state.loop.epic.current_story_id;
+        const advanced = controller.completeStoryAndAdvance();
+        if (advanced) {
+          const refreshed = controller.getState()!;
+          const done = refreshed.loop.epic!.story_progress.filter(
+            (e) => e.status === "completed"
+          ).length;
+          const total = refreshed.loop.epic!.backlog_snapshot.stories.length;
+          ctx.showToast(
+            `✅ Story "${prevId}" done → next "${advanced.nextStoryId}" (${done}/${total})`,
+            "info"
+          );
+          await ctx.injectMessage(
+            buildEpicStoryPrompt(advanced.nextStoryId, refreshed)
+          );
+        } else {
+          const refreshed = controller.getState()!;
+          const done = refreshed.loop.epic!.story_progress.filter(
+            (e) => e.status === "completed"
+          ).length;
+          const total = refreshed.loop.epic!.backlog_snapshot.stories.length;
+          ctx.showToast(
+            `🏆 Epic "${state.loop.epic.epic_id}" complete! ${done}/${total} stories.`,
+            "info"
+          );
+          controller.cancelLoop();
+          await ctx.injectMessage(buildEpicCompletionPrompt(refreshed));
+        }
       } else {
         controller.cancelLoop();
         ctx.showToast("🎉 Harness loop complete!", "info");
@@ -604,6 +647,35 @@ async function handleRunnerOutput(
       if (nextGate) {
         controller.transitionToGate(nextGate);
         ctx.showToast(`⏭️ Gate "${currentGate}" SKIP → ${nextGate}`, "info");
+      } else if (state.loop.epic?.enabled) {
+        const prevId = state.loop.epic.current_story_id;
+        const advanced = controller.completeStoryAndAdvance();
+        if (advanced) {
+          const refreshed = controller.getState()!;
+          const done = refreshed.loop.epic!.story_progress.filter(
+            (e) => e.status === "completed"
+          ).length;
+          const total = refreshed.loop.epic!.backlog_snapshot.stories.length;
+          ctx.showToast(
+            `✅ Story "${prevId}" done → next "${advanced.nextStoryId}" (${done}/${total})`,
+            "info"
+          );
+          await ctx.injectMessage(
+            buildEpicStoryPrompt(advanced.nextStoryId, refreshed)
+          );
+        } else {
+          const refreshed = controller.getState()!;
+          const done = refreshed.loop.epic!.story_progress.filter(
+            (e) => e.status === "completed"
+          ).length;
+          const total = refreshed.loop.epic!.backlog_snapshot.stories.length;
+          ctx.showToast(
+            `🏆 Epic "${state.loop.epic.epic_id}" complete! ${done}/${total} stories.`,
+            "info"
+          );
+          controller.cancelLoop();
+          await ctx.injectMessage(buildEpicCompletionPrompt(refreshed));
+        }
       } else {
         controller.cancelLoop();
         ctx.showToast("🎉 Harness loop complete!", "info");
