@@ -47,8 +47,40 @@ export const RunnerOutputSchema = z
 export type RunnerOutput = z.infer<typeof RunnerOutputSchema>;
 
 // =============================================================================
+// Parallel Watcher Types
+// =============================================================================
+
+export interface ParallelWatcherEntry {
+  task_id: string;
+  status: "pending" | "done" | "cancelled";
+  result: RunnerOutput | null;
+  started_at: string;
+}
+
+export const ParallelWatcherEntrySchema = z.object({
+  task_id: z.string(),
+  status: z.enum(["pending", "done", "cancelled"]),
+  result: RunnerOutputSchema.nullable(),
+  started_at: z.string(),
+});
+
+// =============================================================================
 // Configuration Types (from harness-loop-config spec)
 // =============================================================================
+
+/**
+ * Per-task entry inside a gate's parallel[] array.
+ */
+export const ParallelTaskSchema = z.object({
+  id: z.string(),
+  async: z.boolean().default(true),
+  async_subagent_type: z.string().default("quick"),
+  async_max_wait_seconds: z.number().default(300),
+  async_poll_interval_seconds: z.number().default(60),
+  doc: z.string().optional(),
+  skills: z.array(z.string()).default([]),
+});
+export type ParallelTask = z.infer<typeof ParallelTaskSchema>;
 
 /**
  * Per-gate instruction configuration.
@@ -61,6 +93,7 @@ export const GateInstructionSchema = z.object({
   async_poll_interval_seconds: z.number().default(60),
   async_subagent_type: z.string().default("quick"),
   force: z.boolean().default(false),
+  parallel: z.array(ParallelTaskSchema).optional(),
 });
 export type GateInstruction = z.infer<typeof GateInstructionSchema>;
 
@@ -142,7 +175,7 @@ export interface LoopMeta {
   override_active: boolean;
   same_error_history: Record<string, string[][]>;
   verification_pending: boolean;
-  watcher_task_id: string | null;
+  parallel_watchers: Record<string, ParallelWatcherEntry>;
   message_count_at_start: number;
 }
 
@@ -176,7 +209,7 @@ export const LoopMetaSchema = z.object({
   override_active: z.boolean(),
   same_error_history: z.record(z.string(), z.array(z.array(z.string()))),
   verification_pending: z.boolean(),
-  watcher_task_id: z.string().nullable(),
+  parallel_watchers: z.record(z.string(), ParallelWatcherEntrySchema),
   message_count_at_start: z.number(),
 });
 

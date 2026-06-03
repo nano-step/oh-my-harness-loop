@@ -29,8 +29,7 @@ function mergeConfigs(
     const k = key as keyof HarnessConfig;
 
     if (k === "gate_instructions" || k === "phase_hooks") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (merged as any)[k] = {
+      (merged as Record<string, unknown>)[k] = {
         ...(merged[k] as Record<string, unknown>),
         ...(value as Record<string, unknown>),
       };
@@ -125,8 +124,32 @@ export function loadConfig(
     );
   }
 
+  const config = parseResult.data;
+
+  for (const [gateName, gateConfig] of Object.entries(config.gate_instructions)) {
+    const parallel = gateConfig.parallel;
+    if (!parallel || parallel.length === 0) continue;
+
+    const seenIds = new Set<string>();
+    for (const task of parallel) {
+      if (seenIds.has(task.id)) {
+        throw new HarnessConfigError(
+          `Duplicate parallel task id '${task.id}' in gate '${gateName}'`
+        );
+      }
+      seenIds.add(task.id);
+
+      if (!task.async) {
+        console.warn(
+          `[harness-loop] parallel task '${task.id}' in gate '${gateName}' has async: false; overriding to true`
+        );
+        (task as { async: boolean }).async = true;
+      }
+    }
+  }
+
   return {
-    config: parseResult.data,
+    config,
     overrideConsumed,
   };
 }

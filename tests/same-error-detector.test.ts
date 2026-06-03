@@ -43,7 +43,7 @@ function makeState(
       override_active: false,
       same_error_history: history,
       verification_pending: false,
-      watcher_task_id: null,
+      parallel_watchers: {},
       message_count_at_start: 0,
     },
   };

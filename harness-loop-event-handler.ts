@@ -6,7 +6,7 @@ import {
   createLoopStateController,
   type LoopStateController,
 } from "./loop-state-controller.js";
-import { getStatePath, readState } from "./storage.js";
+import { getStatePath, readState, writeState } from "./storage.js";
 import { invokeRunner } from "./runner-invoker.js";
 import { buildContinuationPrompt } from "./continuation-prompt-builder.js";
 import {
@@ -19,7 +19,14 @@ import { resolveGateInstructions } from "./gate-instructions-resolver.js";
 import { buildCompletionPrompt } from "./templates/continuation-prompt.js";
 import { buildUltraworkVerificationPrompt } from "./templates/ultrawork-verification.js";
 import { collectWatcherResult } from "./async-watcher-result-handler.js";
-import type { HarnessConfig, HarnessLoopState, RunnerOutput } from "./types.js";
+import {
+  RunnerOutputSchema,
+  type HarnessConfig,
+  type HarnessLoopState,
+  type RunnerOutput,
+  type ParallelWatcherEntry,
+  type RunnerStatus,
+} from "./types.js";
 
 export interface PluginContext {
   sessionId: string;
@@ -32,7 +39,8 @@ export interface PluginContext {
   spawnWatcher?(
     gate: string,
     config: unknown,
-    state: HarnessLoopState
+    state: HarnessLoopState,
+    taskId?: string
   ): Promise<string>;
   cancelBackgroundTask?(taskId: string): Promise<void>;
   collectBackgroundTaskResult?(taskId: string): Promise<string | null>;
@@ -76,6 +84,139 @@ function getNextGate(
   }
 
   return config.gates[currentIndex + 1] ?? null;
+}
+
+function hasParallelTasks(gate: string, config: HarnessConfig): boolean {
+  const parallel = config.gate_instructions[gate]?.parallel;
+  return Array.isArray(parallel) && parallel.length > 0;
+}
+
+async function fanOutParallelWatchers(
+  gate: string,
+  config: HarnessConfig,
+  state: HarnessLoopState,
+  ctx: PluginContext
+): Promise<void> {
+  const tasks = config.gate_instructions[gate]!.parallel!;
+  const statePath = getStatePath(ctx.projectRoot);
+
+  for (const task of tasks) {
+    const taskId = await ctx.spawnWatcher!(gate, config, state, task.id);
+    state.loop.parallel_watchers[task.id] = {
+      task_id: taskId,
+      status: "pending",
+      result: null,
+      started_at: new Date().toISOString(),
+    };
+  }
+
+  writeState(statePath, state);
+  ctx.showToast(
+    `\u2699\uFE0F Gate "${gate}": launched ${tasks.length} parallel tasks`,
+    "info"
+  );
+}
+
+async function collectAllWatchers(
+  _gate: string,
+  state: HarnessLoopState,
+  ctx: PluginContext
+): Promise<"all_done" | "partial" | "early_fail"> {
+  const statePath = getStatePath(ctx.projectRoot);
+  const watchers = state.loop.parallel_watchers;
+
+  for (const [id, entry] of Object.entries(watchers)) {
+    if (entry.status !== "pending") continue;
+
+    const result = await collectWatcherResult(ctx, state, entry.task_id);
+    if (result === null) continue;
+
+    entry.status = "done";
+    entry.result = result;
+
+    if (
+      result.status === "FAIL" ||
+      result.status === "BLOCKED" ||
+      result.status === "ERROR"
+    ) {
+      for (const [otherId, otherEntry] of Object.entries(watchers)) {
+        if (otherId === id) continue;
+        if (otherEntry.status !== "pending") continue;
+        if (ctx.cancelBackgroundTask) {
+          await ctx.cancelBackgroundTask(otherEntry.task_id);
+        }
+        otherEntry.status = "cancelled";
+      }
+      writeState(statePath, state);
+      return "early_fail";
+    }
+  }
+
+  writeState(statePath, state);
+
+  const allSettled = Object.values(watchers).every(
+    (w) => w.status === "done" || w.status === "cancelled"
+  );
+  return allSettled ? "all_done" : "partial";
+}
+
+const STATUS_PRECEDENCE: Record<RunnerStatus, number> = {
+  BLOCKED: 6,
+  FAIL: 5,
+  ERROR: 4,
+  PASS: 3,
+  SKIP: 2,
+  WAITING: 1,
+};
+
+function mergeParallelResults(
+  gate: string,
+  watchers: Record<string, ParallelWatcherEntry>
+): RunnerOutput {
+  const doneResults = Object.values(watchers)
+    .filter((w) => w.status === "done" && w.result !== null)
+    .map((w) => w.result!);
+
+  if (doneResults.length === 0) {
+    return RunnerOutputSchema.parse({
+      gate,
+      status: "ERROR",
+      checks: [],
+      rule_ids_violated: ["parallel-all-cancelled"],
+      instructions_for_agent:
+        "All parallel tasks were cancelled before completing",
+    });
+  }
+
+  let worstStatus: RunnerStatus = "PASS";
+  for (const r of doneResults) {
+    if (
+      STATUS_PRECEDENCE[r.status] > STATUS_PRECEDENCE[worstStatus]
+    ) {
+      worstStatus = r.status;
+    }
+  }
+
+  const allChecks = doneResults.flatMap((r) => r.checks);
+  const allRuleIds = [...new Set(doneResults.flatMap((r) => r.rule_ids_violated))];
+  const allInstructions = doneResults
+    .map((r) => r.instructions_for_agent)
+    .filter((s): s is string => !!s);
+
+  const passResult = doneResults.find((r) => r.status === "PASS");
+
+  return RunnerOutputSchema.parse({
+    gate,
+    status: worstStatus,
+    checks: allChecks,
+    rule_ids_violated: allRuleIds,
+    instructions_for_agent:
+      allInstructions.length > 0
+        ? allInstructions.join("\n\n---\n\n")
+        : undefined,
+    next_gate:
+      worstStatus === "PASS" ? (passResult?.next_gate ?? null) : null,
+  });
 }
 
 export async function handleSessionIdle(ctx: PluginContext): Promise<void> {
@@ -207,11 +348,37 @@ async function processLoopIteration(
     return;
   }
 
-  if (state.loop.watcher_task_id != null) {
+  if (hasParallelTasks(currentGate, config)) {
+    if (Object.keys(state.loop.parallel_watchers).length === 0) {
+      if (!ctx.spawnWatcher) return;
+      await fanOutParallelWatchers(currentGate, config, state, ctx);
+      controller.incrementGateIteration();
+      return;
+    }
+
+    const collectResult = await collectAllWatchers(currentGate, state, ctx);
+    if (collectResult === "partial") {
+      return;
+    }
+
+    const merged = mergeParallelResults(currentGate, state.loop.parallel_watchers);
+    controller.clearWatcherTaskId();
+    controller.recordRunnerOutput(merged);
+
+    if (merged.rule_ids_violated.length > 0) {
+      controller.recordSameErrorHistory(currentGate, merged.rule_ids_violated);
+    }
+
+    await handleRunnerOutput(ctx, controller, state, config, currentGate, merged);
+    return;
+  }
+
+  const singleWatcher = state.loop.parallel_watchers["__single__"];
+  if (singleWatcher && singleWatcher.status === "pending") {
     const watcherResult = await collectWatcherResult(
       ctx,
       state,
-      state.loop.watcher_task_id
+      singleWatcher.task_id
     );
 
     if (watcherResult === null) {
@@ -244,7 +411,7 @@ async function processLoopIteration(
       controller.setWatcherTaskId(taskId);
       controller.incrementGateIteration();
       ctx.showToast(
-        `🕐 Watching gate "${currentGate}" via background subagent`,
+        `\uD83D\uDD50 Watching gate "${currentGate}" via background subagent`,
         "info"
       );
 
@@ -267,7 +434,7 @@ async function processLoopIteration(
           heartbeatCount += 1;
           const elapsed = heartbeatCount * intervalSeconds;
           ctx.showToast(
-            `⏳ Still waiting for gate "${currentGate}" (watcher active ~${elapsed}s)`,
+            `\u23F3 Still waiting for gate "${currentGate}" (watcher active ~${elapsed}s)`,
             "info"
           );
         }, intervalSeconds * 1000);
@@ -283,7 +450,7 @@ async function processLoopIteration(
           if (
             refreshedState == null ||
             !refreshedState.loop.active ||
-            refreshedState.loop.watcher_task_id !== taskId
+            Object.keys(refreshedState.loop.parallel_watchers).length === 0
           ) {
             return;
           }
@@ -307,7 +474,7 @@ async function processLoopIteration(
           );
           await ctx.injectMessage(prompt);
           ctx.showToast(
-            `⏰ Gate "${currentGate}" watcher timed out after ${maxWaitSeconds}s`,
+            `\u23F0 Gate "${currentGate}" watcher timed out after ${maxWaitSeconds}s`,
             "warning"
           );
         }, (maxWaitSeconds + 30) * 1000);

@@ -16,17 +16,17 @@ export async function handleHarnessOff(ctx: HarnessOffContext): Promise<void> {
     return;
   }
 
-  const watcherTaskId = state.loop.watcher_task_id;
-
-  if (watcherTaskId && ctx.cancelBackgroundTask) {
-    try {
-      await ctx.cancelBackgroundTask(watcherTaskId);
-      ctx.showToast("🛑 Cancelled active watcher subagent", "info");
-    } catch (e) {
-      ctx.showToast(
-        `⚠️ Failed to cancel watcher: ${e instanceof Error ? e.message : String(e)}`,
-        "warning"
-      );
+  if (ctx.cancelBackgroundTask) {
+    for (const entry of Object.values(state.loop.parallel_watchers)) {
+      if (entry.status !== "pending") continue;
+      try {
+        await ctx.cancelBackgroundTask(entry.task_id);
+      } catch {
+        // best-effort cancellation
+      }
+    }
+    if (Object.values(state.loop.parallel_watchers).some((e) => e.status === "pending")) {
+      ctx.showToast("\uD83D\uDED1 Cancelled active watcher subagent(s)", "info");
     }
   }
 
