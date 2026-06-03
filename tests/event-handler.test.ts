@@ -438,3 +438,38 @@ describe("createLoopStateController — state machine unit tests", () => {
     expect(state.checkpoints["pre-work"]?.status).toBe("PASS");
   });
 });
+
+describe("handleSessionIdle — BUG H1: concurrent calls serialize", () => {
+  it("runner is invoked exactly ONCE when 5 concurrent handleSessionIdle calls fire on same session", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-h1-concurrent";
+    startLoop(projectRoot, sessionId, makeConfig());
+    mockedInvokeRunner.mockResolvedValue(makePassOutput("pre-work"));
+
+    const ctx = makeContext(projectRoot, sessionId);
+
+    vi.useFakeTimers();
+    const promises = Array.from({ length: 5 }, () => handleSessionIdle(ctx));
+    await vi.runAllTimersAsync();
+    await Promise.all(promises);
+    vi.useRealTimers();
+
+    expect(mockedInvokeRunner).toHaveBeenCalledTimes(1);
+  });
+
+  it("after first concurrent batch completes, subsequent call can re-enter", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-h1-reenter";
+    startLoop(projectRoot, sessionId, makeConfig());
+    mockedInvokeRunner.mockResolvedValue(makePassOutput("pre-work"));
+
+    const ctx = makeContext(projectRoot, sessionId);
+
+    await runIdle(ctx);
+    expect(mockedInvokeRunner).toHaveBeenCalledTimes(1);
+
+    mockedInvokeRunner.mockResolvedValue(makePassOutput("in-progress"));
+    await runIdle(ctx);
+    expect(mockedInvokeRunner).toHaveBeenCalledTimes(2);
+  });
+});

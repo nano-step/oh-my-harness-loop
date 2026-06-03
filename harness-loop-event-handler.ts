@@ -48,8 +48,48 @@ export interface PluginContext {
   collectBackgroundTaskResult?(taskId: string): Promise<string | null>;
 }
 
-const inFlightSessions = new Set<string>();
+const inFlightSessions = new Map<string, Promise<void>>();
 const runtimeRetried = new Map<string, number>();
+
+interface HeartbeatHandle {
+  stop(): void;
+}
+
+interface HeartbeatOptions {
+  ctx: PluginContext;
+  gate: string;
+  intervalSeconds: number;
+  maxHeartbeats: number;
+}
+
+function createHeartbeat(opts: HeartbeatOptions): HeartbeatHandle {
+  let count = 0;
+  let stopped = false;
+  const interval = setInterval(() => {
+    if (stopped) {
+      return;
+    }
+    if (count >= opts.maxHeartbeats) {
+      stop();
+      return;
+    }
+    count += 1;
+    const elapsed = count * opts.intervalSeconds;
+    opts.ctx.showToast(
+      `\u23F3 Still waiting for gate "${opts.gate}" (watcher active ~${elapsed}s)`,
+      "info"
+    );
+  }, opts.intervalSeconds * 1000);
+  interval.unref?.();
+
+  function stop(): void {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(interval);
+  }
+
+  return { stop };
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -233,37 +273,41 @@ export async function handleSessionIdle(ctx: PluginContext): Promise<void> {
     return;
   }
 
-  if (inFlightSessions.has(ctx.sessionId)) {
+  const existing = inFlightSessions.get(ctx.sessionId);
+  if (existing) {
+    await existing;
     return;
   }
 
-  const now = Date.now();
-  const lastUserMessage = ctx.latestUserMessageTimestamp();
-  if (now - lastUserMessage < USER_MESSAGE_IN_PROGRESS_WINDOW_MS) {
-    return;
-  }
+  const inflight = (async () => {
+    try {
+      const now = Date.now();
+      const lastUserMessage = ctx.latestUserMessageTimestamp();
+      if (now - lastUserMessage < USER_MESSAGE_IN_PROGRESS_WINDOW_MS) {
+        return;
+      }
 
-  if (ctx.hasActiveBackgroundTasks()) {
-    return;
-  }
+      if (ctx.hasActiveBackgroundTasks()) {
+        return;
+      }
 
-  await sleep(IDLE_SETTLE_MS);
+      await sleep(IDLE_SETTLE_MS);
 
-  state = readState(statePath);
-  if (!state || !state.loop.active) {
-    return;
-  }
-  if (state.loop.session_id !== ctx.sessionId) {
-    return;
-  }
+      state = readState(statePath);
+      if (!state || !state.loop.active) {
+        return;
+      }
+      if (state.loop.session_id !== ctx.sessionId) {
+        return;
+      }
 
-  inFlightSessions.add(ctx.sessionId);
-
-  try {
-    await processLoopIteration(ctx, state);
-  } finally {
-    inFlightSessions.delete(ctx.sessionId);
-  }
+      await processLoopIteration(ctx, state);
+    } finally {
+      inFlightSessions.delete(ctx.sessionId);
+    }
+  })();
+  inFlightSessions.set(ctx.sessionId, inflight);
+  await inflight;
 }
 
 async function processLoopIteration(
@@ -449,26 +493,19 @@ async function processLoopIteration(
           60,
           Math.floor(maxWaitSeconds / 3)
         );
-        let heartbeatCount = 0;
         const maxHeartbeats = 3;
 
-        const heartbeatInterval = setInterval(() => {
-          if (heartbeatCount >= maxHeartbeats) {
-            clearInterval(heartbeatInterval);
-            return;
-          }
-          heartbeatCount += 1;
-          const elapsed = heartbeatCount * intervalSeconds;
-          ctx.showToast(
-            `\u23F3 Still waiting for gate "${currentGate}" (watcher active ~${elapsed}s)`,
-            "info"
-          );
-        }, intervalSeconds * 1000);
+        const heartbeat = createHeartbeat({
+          ctx,
+          gate: currentGate,
+          intervalSeconds,
+          maxHeartbeats,
+        });
 
         const scheduledTaskId = taskId;
         const scheduledGate = currentGate;
         const graceTimeout = setTimeout(async () => {
-          clearInterval(heartbeatInterval);
+          heartbeat.stop();
 
           const refreshedState = controller.getState();
           if (
