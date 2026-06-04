@@ -23,6 +23,8 @@ Then **restart OpenCode** (so the slash-command shims are loaded) and run:
 /harness-init
 ```
 
+> **AI Agent?** Copy [docs/SETUP_INSTRUCTIONS_FOR_AGENT.md](docs/SETUP_INSTRUCTIONS_FOR_AGENT.md) into your context for step-by-step install + registration instructions.
+
 That single command bootstraps everything:
 - `.opencode/harness.config.json` (5-gate skeleton)
 - `scripts/harness-check.sh` (no-op runner stub)

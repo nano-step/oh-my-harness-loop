@@ -6,10 +6,22 @@ This document tells you exactly which files to create in the user's project so t
 
 ## Pre-flight checks (run all)
 
-1. Confirm `oh-my-harness` is in the project's plugin list:
-   - Read `.opencode/opencode.json` if it exists.
-   - If `plugin` array does not contain `@nano-step/oh-my-harness@latest`, ask the user before proceeding.
-2. Confirm the package is installed at the expected location (`node_modules/@nano-step/oh-my-harness/` exists). If not, run `npm install @nano-step/oh-my-harness@latest`.
+1. Install the npm package (if not already present):
+   - Check if `node_modules/@nano-step/oh-my-harness/` exists.
+   - If not, run `npm install @nano-step/oh-my-harness@latest`.
+   - The postinstall script auto-creates `.opencode/commands/harness-*.md` shims.
+2. Register the plugin in OpenCode config:
+   - Read `.opencode/opencode.json` (or `opencode.json` at project root).
+   - If the file does not exist, create `.opencode/opencode.json` with:
+     ```json
+     {
+       "plugin": ["@nano-step/oh-my-harness@latest"]
+     }
+     ```
+   - If the file exists but has no `plugin` array, add one: `"plugin": ["@nano-step/oh-my-harness@latest"]`.
+   - If `plugin` array exists but does not contain `@nano-step/oh-my-harness@latest`, append it.
+   - If it already contains the entry, skip.
+   - **Do not remove or modify other fields in the file.**
 3. Confirm `.opencode/commands/harness-on.md` and `.opencode/commands/harness-off.md` exist (these are auto-created by the package's postinstall — if missing, suggest reinstalling).
 4. Check whether the project already has any of these (ask before overwriting):
    - `.opencode/harness.config.json`
