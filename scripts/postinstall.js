@@ -2,13 +2,16 @@
 
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
+  readlinkSync,
   rmSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -136,12 +139,47 @@ try {
         " already present). Restart OpenCode to use /harness-on, /harness-off, /harness-init, /harness-check, /harness-team."
     );
   }
+  // --- Skill symlink: .opencode/skills/team-architecture-factory → package's skills/ ---
+  const skillName = "team-architecture-factory";
+  const skillDest = join(initCwd, ".opencode/skills", skillName);
+  const skillSource = join(packageRoot, "skills", skillName);
+
+  if (existsSync(skillSource)) {
+    mkdirSync(join(initCwd, ".opencode/skills"), { recursive: true });
+
+    // Compute relative path from symlink location to target
+    const relTarget = relative(dirname(skillDest), skillSource);
+
+    if (existsSync(skillDest)) {
+      // If it's already a symlink pointing to the right place, skip
+      const isSymlink = lstatSync(skillDest).isSymbolicLink();
+      if (isSymlink && readlinkSync(skillDest) === relTarget) {
+        // Already correct
+      } else if (isSymlink) {
+        // Symlink exists but points elsewhere — update it
+        unlinkSync(skillDest);
+        symlinkSync(relTarget, skillDest);
+        console.log(
+          "[oh-my-harness] Updated skill symlink: .opencode/skills/" + skillName
+        );
+      }
+      // If it's a real directory (user-authored), don't touch it
+    } else {
+      symlinkSync(relTarget, skillDest);
+      console.log(
+        "[oh-my-harness] Created skill symlink: .opencode/skills/" +
+          skillName +
+          " → " +
+          relTarget
+      );
+    }
+  }
 } catch (err) {
   // Never break the install
   console.warn(
-    "[oh-my-harness] postinstall: could not create slash-command shims: " +
+    "[oh-my-harness] postinstall: could not complete setup: " +
       (err && err.message ? err.message : String(err)) +
-      ". You can create them manually — see README."
+      ". You can create shims/symlinks manually — see README."
   );
 }
 process.exit(0);
