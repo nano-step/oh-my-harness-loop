@@ -41,6 +41,16 @@ Then:
 
 The templates ship with a **no-op stub runner** (every gate returns PASS). Edit `scripts/harness-check.sh` and `docs/harness/gates/*.md` to wire your real checks (tsc, vitest, lint, etc.).
 
+## What's New in v1.1.0
+
+In v1.0 the package drove work through quality gates. In v1.1 it also designs the team that does the work.
+
+The new `/harness-team` command turns a plain-English domain description into a runnable agent team: agent definitions, the skills those agents use, an orchestrator to coordinate them, and a pointer in `AGENTS.md` so the team auto-triggers in future sessions. Six architecture patterns are baked in (Pipeline, Fan-out/Fan-in, Expert Pool, Producer-Reviewer, Supervisor, Hierarchical Delegation) — the skill picks the one that fits the work, and a follow-up `/harness-team` invocation extends an existing team without rebuilding from scratch.
+
+`/harness-team` and `/harness-on` are complementary, not nested. Use the factory to design who runs the work. Use the gate loop to hold their output to a quality bar.
+
+Adapted from [revfactory/harness](https://github.com/revfactory/harness) v1.2.0 (Apache-2.0). All shipped docs are English-only. See [Team Architecture Factory](#team-architecture-factory-harness-team) below for the full walkthrough.
+
 ## Team Architecture Factory (`/harness-team`)
 
 In addition to the gate-loop feature, `@nano-step/oh-my-harness` ships a
