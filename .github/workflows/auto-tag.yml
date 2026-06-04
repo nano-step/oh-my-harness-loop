@@ -25,22 +25,49 @@ jobs:
         id: tag
         run: |
           set -euo pipefail
-          YEAR=$(date -u +%Y)
-          MONTH=$(date -u +'%-m')
-          DAY=$(date -u +%d)
-          PREFIX="v${YEAR}.${MONTH}.${DAY}"
 
           git fetch --tags --quiet
 
-          MAX_NN=$(git tag --list "${PREFIX}??" \
-            | grep -E "^${PREFIX}[0-9]{2}$" \
-            | sed -E "s|^${PREFIX}||" \
-            | sort -n | tail -1 || true)
-          NEXT_NN=$(printf '%02d' $(( 10#${MAX_NN:-0} + 1 )))
-          TAG="${PREFIX}${NEXT_NN}"
+          # Find the latest semver tag (vMAJOR.MINOR.PATCH). Sort by version
+          # numeric order, not lexicographic, so v1.10.0 > v1.9.0.
+          LATEST=$(git tag --list "v[0-9]*.[0-9]*.[0-9]*" \
+            | sed 's/^v//' \
+            | sort -t. -k1,1n -k2,2n -k3,3n \
+            | tail -1)
 
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [[ -z "$LATEST" ]]; then
+            echo "No prior semver tag found; defaulting to v0.0.1"
+            echo "tag=v0.0.1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MAJOR=$(echo "$LATEST" | cut -d. -f1)
+          MINOR=$(echo "$LATEST" | cut -d. -f2)
+          PATCH=$(echo "$LATEST" | cut -d. -f3)
+
+          # Bump based on conventional commits since LATEST.
+          # BREAKING CHANGE / feat! → major
+          # feat:                    → minor
+          # everything else          → patch
+          BUMP="patch"
+          if git log "v${LATEST}..HEAD" --pretty=%s \
+              | grep -qE '^(feat!|fix!|refactor!|perf!):|BREAKING CHANGE'; then
+            BUMP="major"
+          elif git log "v${LATEST}..HEAD" --pretty=%s \
+              | grep -qE '^feat(\([^)]+\))?:'; then
+            BUMP="minor"
+          fi
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Bump type: $BUMP (prev: v$LATEST)"
           echo "Next tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Push tag
         run: |
