@@ -17,8 +17,8 @@ async-watcher-spawner        Spawn background subagent watcher for async gates
 storage                      Read/write .opencode/harness-loop.local.json
 config-loader                Load + validate harness.config.json (HarnessConfigSchema)
 types                        All Zod schemas + TypeScript types (source of truth)
-commands/                    /harness-on, /harness-off handlers
-templates/                   Prompt templates (opening, continuation, ultrawork)
+commands/                    /harness-on, /harness-off, /harness-init, /harness-check, /harness-team handlers
+templates/                   Prompt templates (opening, continuation, ultrawork, init shims)
 ```
 
 ## Key Invariants
@@ -45,6 +45,15 @@ tsc --noEmit && npx vitest run
 
 See `docs/HARNESS.md` for lane classification, validation ladder, and release flow.  
 See `docs/FEATURE_INTAKE.md` to classify a new request before touching code.
+
+## Skills
+
+`skills/team-architecture-factory/` ships a markdown-only agent-team-architecture
+skill (ported from revfactory/harness v1.2.0, Apache-2.0). The plugin exposes
+`/harness-team [--audit]` to activate it; the skill is read by the in-session
+agent and writes its generated files to `.opencode/agents/` + `.opencode/skills/`
++ `AGENTS.md` in the consumer project. **No shared state with the gate-loop.**
+The gate-loop is `harness-on`/`harness-off`; the factory is `harness-team`.
 
 ## OpenSpec
 

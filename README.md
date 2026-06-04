@@ -41,14 +41,57 @@ Then:
 
 The templates ship with a **no-op stub runner** (every gate returns PASS). Edit `scripts/harness-check.sh` and `docs/harness/gates/*.md` to wire your real checks (tsc, vitest, lint, etc.).
 
+## Team Architecture Factory (`/harness-team`)
+
+In addition to the gate-loop feature, `@nano-step/oh-my-harness` ships a
+**team architecture factory** skill ported from [revfactory/harness](https://github.com/revfactory/harness)
+(Apache-2.0). It turns a domain description into a complete agent team
++ skill scaffolding in your project.
+
+### Usage
+
+```
+/harness-team           # Generate a new team
+/harness-team --audit   # Audit existing .opencode/agents/ and .opencode/skills/
+```
+
+### What it generates
+
+- `.opencode/agents/{name}.md` — individual agent definitions
+- `.opencode/skills/{name}/` — domain-specific skills with references
+- `.opencode/skills/{orchestrator}/SKILL.md` — workflow orchestrator
+- `AGENTS.md` — appended pointer section
+
+### Architectural patterns supported
+
+1. **Pipeline** — sequential stages
+2. **Fan-out/Fan-in** — parallel perspectives
+3. **Expert Pool** — context-routed specialists
+4. **Producer-Reviewer** — generation + quality gate
+5. **Supervisor** — dynamic task dispatch
+6. **Hierarchical Delegation** — top-down decomposition (max depth 2)
+
+### NOT for gate-loop operation
+
+`/harness-team` is orthogonal to `/harness-on`. They share no state. Use the
+gate-loop for quality gates on PRs; use the factory to design who runs the work.
+
+### Attribution
+
+This feature is adapted from [revfactory/harness](https://github.com/revfactory/harness)
+v1.2.0. See `skills/team-architecture-factory/assets/LICENSE-UPSTREAM` and `NOTICE`.
+
 ## Slash Commands (auto-installed)
 
 When you `npm install @nano-step/oh-my-harness` in a project, a `postinstall` script automatically creates the OpenCode slash-command shims:
 
 - `.opencode/commands/harness-on.md`
 - `.opencode/commands/harness-off.md`
+- `.opencode/commands/harness-init.md`
+- `.opencode/commands/harness-check.md`
+- `.opencode/commands/harness-team.md`
 
-These shims make `/harness-on` and `/harness-off` appear in OpenCode's autocomplete. The plugin intercepts the commands at runtime via the `command.execute.before` hook.
+These shims make the 5 commands appear in OpenCode's autocomplete. The plugin intercepts the commands at runtime via the `command.execute.before` hook.
 
 **The postinstall:**
 - Never overwrites existing files — if you customize the shims, they're preserved.
@@ -170,6 +213,8 @@ Your runner must:
 | `/harness-on --epic --resume` | Resume preserved epic at the current story. |
 | `/harness-off` | Stop the active loop. Preserves epic state for `--resume`. |
 | `/harness-off --clean` | Stop and wipe all state, including epic. |
+| `/harness-team` | Team Architecture Factory — generate agent team + skills from a domain description. See [Team Architecture Factory](#team-architecture-factory-harness-team). |
+| `/harness-team --audit` | Audit existing `.opencode/agents/` and `.opencode/skills/` inventory; report only, no file changes. |
 
 ## How to Adopt in Your Project
 

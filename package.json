@@ -33,6 +33,7 @@
     "dist",
     "scripts/postinstall.js",
     "templates",
+    "skills",
     "docs/GETTING_STARTED.md",
     "docs/SETUP_INSTRUCTIONS_FOR_AGENT.md",
     "README.md"

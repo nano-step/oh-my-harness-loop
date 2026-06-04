@@ -1,0 +1,13 @@
+This skill is adapted from revfactory/harness (https://github.com/revfactory/harness)
+Copyright 2026 revfactory contributors
+Licensed under the Apache License, Version 2.0.
+
+Adaptation by nano-step contributors (2026), distributed under the same
+Apache-2.0 license for the skill files. The surrounding TypeScript code in
+@nano-step/oh-my-harness is MIT-licensed.
+
+---
+
+Full Apache-2.0 license text: see LICENSE-UPSTREAM in this directory.
+Upstream version: v1.2.0 (snapshot 2026-06-03).
+Adaptation: see CHANGELOG-UPSTREAM.md for upstream changelog history.

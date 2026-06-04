@@ -13,6 +13,7 @@ import {
 import { handleHarnessOff, type HarnessOffContext } from "./commands/harness-off.js";
 import { handleHarnessInit, type HarnessInitContext } from "./commands/harness-init.js";
 import { handleHarnessCheck, type HarnessCheckContext } from "./commands/harness-check.js";
+import { handleHarnessTeam, type HarnessTeamContext } from "./commands/harness-team.js";
 import type { HarnessLoopState } from "./types.js";
 
 const PLUGIN_VERSION = "1.0.0";
@@ -211,6 +212,26 @@ const HarnessLoopPlugin: Plugin = async (input: PluginInput): Promise<Hooks> => 
         const args = argsStr ? argsStr.trim().split(/\s+/) : [];
         const ctx = buildHarnessCheckContext(input, sessionID);
         await handleHarnessCheck(ctx, args);
+        return;
+      }
+
+      if (command === "harness-team") {
+        const args = argsStr ? argsStr.trim().split(/\s+/) : [];
+        const teamCtx: HarnessTeamContext = {
+          projectRoot: input.directory,
+          showToast: (message, variant) => {
+            void input.client.tui.showToast({
+              body: { message, variant },
+            });
+          },
+          injectMessage: async (text) => {
+            await input.client.session.prompt({
+              path: { id: sessionID },
+              body: { parts: [{ type: "text", text }] },
+            });
+          },
+        };
+        await handleHarnessTeam(teamCtx, args);
         return;
       }
     },

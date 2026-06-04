@@ -191,6 +191,10 @@ export async function handleHarnessInit(ctx: HarnessInitContext): Promise<void> 
   reportLines.push("- Restart OpenCode (so the slash-command shims are scanned)");
   reportLines.push("- Run `/harness-on` to start the loop");
   reportLines.push("- Or run `/harness-check pre-merge` first to sanity-check your runner without starting a loop");
+  reportLines.push("");
+  reportLines.push("### Team Architecture Factory (separate feature)");
+  reportLines.push("💡 Want to generate a full agent team for your domain? Try `/harness-team`.");
+  reportLines.push("It scaffolds `.opencode/agents/` and `.opencode/skills/` from a domain description using 6 pre-defined team-architecture patterns. Completely orthogonal to the gate-loop — no shared state.");
 
   await ctx.injectMessage(reportLines.join("\n"));
 }

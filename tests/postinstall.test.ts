@@ -174,6 +174,7 @@ describe("postinstall.js", () => {
       "harness-off.md",
       "harness-init.md",
       "harness-check.md",
+      "harness-team.md",
     ]) {
       writeFileSync(
         join(tmpDir, ".opencode", "commands", name),

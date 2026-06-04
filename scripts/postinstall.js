@@ -61,6 +61,11 @@ const SHIMS = [
     content:
       "---\ndescription: Manually run a single gate via the configured runner (read-only)\n---\n\n$ARGUMENTS\n",
   },
+  {
+    relPath: ".opencode/commands/harness-team.md",
+    content:
+      "---\ndescription: Team Architecture Factory — generate agent team + skills from domain description\n---\n\n$ARGUMENTS\n",
+  },
 ];
 
 // Legacy filenames that v2026.6.0303 wrote to the wrong dirs. We delete ONLY
@@ -128,7 +133,7 @@ try {
         join(initCwd, ".opencode/commands") +
         " (" +
         skipped +
-        " already present). Restart OpenCode to use /harness-on, /harness-off, /harness-init, /harness-check."
+        " already present). Restart OpenCode to use /harness-on, /harness-off, /harness-init, /harness-check, /harness-team."
     );
   }
 } catch (err) {
