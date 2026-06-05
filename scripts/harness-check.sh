@@ -94,6 +94,33 @@ git_clean() {
   git diff --quiet && git diff --cached --quiet
 }
 
+get_gh_repo() {
+  local url
+  url=$(git remote get-url origin 2>/dev/null || echo "")
+  if [[ "$url" =~ github\.com[:/]([^/]+)/([^/.]+)(\.git)?$ ]]; then
+    echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"
+  fi
+}
+
+# Outputs: "0" (none), "<n>" (count), "no-pr" (no open PR), "error" (gh failed)
+count_unresolved_pr_threads() {
+  if ! command -v gh &>/dev/null; then echo "error"; return; fi
+
+  local pr_number
+  pr_number=$(gh pr view --json number -q '.number' 2>/dev/null || echo "")
+  if [[ -z "$pr_number" ]]; then echo "no-pr"; return; fi
+
+  local repo_parts
+  read -r owner repo_name <<< "$(get_gh_repo)"
+  if [[ -z "$owner" ]]; then echo "error"; return; fi
+
+  gh api graphql \
+    -f query='query($pr:Int!,$owner:String!,$repo:String!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved isOutdated}}}}}' \
+    -f owner="$owner" -f repo="$repo_name" -F pr="$pr_number" \
+    --jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved==false and .isOutdated==false)]|length' \
+    2>/dev/null || echo "error"
+}
+
 gate_pre_work() {
   local checks=()
   local rule_ids=()
@@ -209,6 +236,25 @@ gate_pre_merge() {
     fail_msgs+=("- \`npm pack --dry-run\` failed. Check \`package.json\` \`files\`/\`exports\`/\`main\`/\`types\`.")
   fi
 
+  local unresolved_count
+  unresolved_count=$(count_unresolved_pr_threads)
+  case "$unresolved_count" in
+    no-pr)
+      checks+=("$(check_entry "3.5" "No unresolved PR comments" "PASS" "" "No open PR for this branch.")")
+      ;;
+    error)
+      checks+=("$(check_entry "3.5" "No unresolved PR comments" "PASS" "" "gh CLI unavailable — skipped.")")
+      ;;
+    0)
+      checks+=("$(check_entry "3.5" "No unresolved PR comments" "PASS")")
+      ;;
+    *)
+      checks+=("$(check_entry "3.5" "No unresolved PR comments" "FAIL" "unresolved-review-comments" "$unresolved_count unresolved thread(s) on PR.")")
+      rule_ids+=("\"unresolved-review-comments\"")
+      fail_msgs+=("- PR has $unresolved_count unresolved review thread(s). Resolve all comments on GitHub before merging.")
+      ;;
+  esac
+
   local checks_json
   checks_json="[$(IFS=,; echo "${checks[*]}")]"
   local rule_ids_json="[]"
@@ -234,6 +280,17 @@ gate_post_merge() {
   else
     checks+=("$(check_entry "4.1" "Working tree clean" "FAIL" "" "Uncommitted changes after merge.")")
     fail_msgs+=("- Working tree has uncommitted changes. Commit or stash before declaring merge done.")
+  fi
+
+  local gh_user
+  gh_user=$(gh api user --jq '.login' 2>/dev/null || echo "")
+  if [[ "$gh_user" == "kokorolx" ]]; then
+    checks+=("$(check_entry "4.2" "gh account is kokorolx" "PASS")")
+  elif [[ -z "$gh_user" ]]; then
+    checks+=("$(check_entry "4.2" "gh account is kokorolx" "PASS" "" "gh CLI unavailable — skipped.")")
+  else
+    checks+=("$(check_entry "4.2" "gh account is kokorolx" "FAIL" "wrong-gh-account" "Active gh account: $gh_user")")
+    fail_msgs+=("- gh CLI is authenticated as \`$gh_user\`, not \`kokorolx\`. Run \`gh auth switch --user kokorolx\` before pushing.")
   fi
 
   local checks_json

@@ -51,8 +51,9 @@ function buildPluginContext(
       });
     },
     showToast: (message: string, variant: "info" | "warning" | "error") => {
+      const duration = variant === "error" ? 10000 : variant === "warning" ? 6000 : undefined;
       void input.client.tui.showToast({
-        body: { message, variant },
+        body: { message, variant, ...(duration !== undefined && { duration }) },
       });
     },
     hasActiveBackgroundTasks: () => false,
@@ -76,8 +77,9 @@ function buildHarnessOnContext(
       });
     },
     showToast: (message: string, variant: "info" | "warning" | "error") => {
+      const duration = variant === "error" ? 10000 : variant === "warning" ? 6000 : undefined;
       void input.client.tui.showToast({
-        body: { message, variant },
+        body: { message, variant, ...(duration !== undefined && { duration }) },
       });
     },
   };
@@ -89,8 +91,9 @@ function buildHarnessOffContext(
   return {
     projectRoot: input.directory,
     showToast: (message: string, variant: "info" | "warning" | "error") => {
+      const duration = variant === "error" ? 10000 : variant === "warning" ? 6000 : undefined;
       void input.client.tui.showToast({
-        body: { message, variant },
+        body: { message, variant, ...(duration !== undefined && { duration }) },
       });
     },
   };
@@ -103,8 +106,9 @@ function buildHarnessInitContext(
   return {
     projectRoot: input.directory,
     showToast: (message: string, variant: "info" | "warning" | "error") => {
+      const duration = variant === "error" ? 10000 : variant === "warning" ? 6000 : undefined;
       void input.client.tui.showToast({
-        body: { message, variant },
+        body: { message, variant, ...(duration !== undefined && { duration }) },
       });
     },
     injectMessage: async (text: string) => {
@@ -123,8 +127,9 @@ function buildHarnessCheckContext(
   return {
     projectRoot: input.directory,
     showToast: (message: string, variant: "info" | "warning" | "error") => {
+      const duration = variant === "error" ? 10000 : variant === "warning" ? 6000 : undefined;
       void input.client.tui.showToast({
-        body: { message, variant },
+        body: { message, variant, ...(duration !== undefined && { duration }) },
       });
     },
     injectMessage: async (text: string) => {
