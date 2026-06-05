@@ -162,10 +162,14 @@ async function fanOutParallelWatchers(
 
 async function collectAllWatchers(
   _gate: string,
-  state: HarnessLoopState,
+  _staleState: HarnessLoopState,
   ctx: PluginContext
 ): Promise<"all_done" | "partial" | "early_fail"> {
   const statePath = getStatePath(ctx.projectRoot);
+  // Re-read from disk: the passed-in state snapshot may be stale if the
+  // heartbeat timeout wrote between processLoopIteration's initial read and here.
+  const state = readState(statePath);
+  if (!state?.loop.active) return "partial";
   const watchers = state.loop.parallel_watchers;
 
   for (const [id, entry] of Object.entries(watchers)) {
@@ -465,7 +469,11 @@ async function processLoopIteration(
       return;
     }
 
-    const merged = mergeParallelResults(currentGate, state.loop.parallel_watchers);
+    // Re-read after collection: collectAllWatchers wrote updated watcher results to disk.
+    const freshState = readState(getStatePath(ctx.projectRoot));
+    if (!freshState?.loop.active) return;
+
+    const merged = mergeParallelResults(currentGate, freshState.loop.parallel_watchers);
     controller.clearWatcherTaskId();
     controller.recordRunnerOutput(merged);
 
@@ -473,7 +481,7 @@ async function processLoopIteration(
       controller.recordSameErrorHistory(currentGate, merged.rule_ids_violated);
     }
 
-    await handleRunnerOutput(ctx, controller, state, config, currentGate, merged);
+    await handleRunnerOutput(ctx, controller, freshState, config, currentGate, merged);
     return;
   }
 
@@ -508,6 +516,18 @@ async function processLoopIteration(
     currentGate,
     ctx.projectRoot
   );
+
+  if (gateInstructions.warning) {
+    if (config.strict_instructions) {
+      controller.cancelLoop();
+      ctx.showToast(
+        `❌ Loop stopped: ${gateInstructions.warning}`,
+        "error"
+      );
+      return;
+    }
+    ctx.showToast(`⚠️ ${gateInstructions.warning}`, "warning");
+  }
 
   if (gateInstructions.isAsync && gateInstructions.asyncConfig) {
     if (ctx.spawnWatcher) {

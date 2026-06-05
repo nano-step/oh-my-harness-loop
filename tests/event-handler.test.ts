@@ -62,10 +62,12 @@ vi.mock("../storage.js", async (importOriginal) => {
 
 import { handleSessionIdle, type PluginContext } from "../harness-loop-event-handler.js";
 import { invokeRunner } from "../runner-invoker.js";
+import { resolveGateInstructions } from "../gate-instructions-resolver.js";
 import { createLoopStateController } from "../loop-state-controller.js";
 import { writeState, readState, getStatePath } from "../storage.js";
 
 const mockedInvokeRunner = vi.mocked(invokeRunner);
+const mockedResolveGateInstructions = vi.mocked(resolveGateInstructions);
 
 const dirs: string[] = [];
 
@@ -566,6 +568,51 @@ describe("L2: getNextGate — validate next_gate against config.gates", () => {
 
     const state = createLoopStateController(projectRoot).getState();
     expect(state?.loop.current_gate).toBe("in-progress");
+  });
+});
+
+describe("M4: gate doc warning shown on each gate entry", () => {
+  it("shows warning toast when resolveGateInstructions returns a warning", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-m4";
+    startLoop(projectRoot, sessionId, makeConfig({ gates: ["lint"] }));
+    const ctx = makeContext(projectRoot, sessionId);
+
+    mockedResolveGateInstructions.mockReturnValueOnce({
+      docPath: null,
+      skills: [],
+      warning: 'No instruction doc or skills configured for gate "lint". Using general best practices.',
+      isAsync: false,
+      asyncConfig: null,
+    });
+    mockedInvokeRunner.mockResolvedValueOnce(makePassOutput("lint", null));
+    await runIdle(ctx);
+
+    const warnCalls = (ctx.showToast as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([, level]) => level === "warning"
+    );
+    expect(warnCalls.length).toBeGreaterThan(0);
+    expect(warnCalls[0]![0]).toContain("lint");
+  });
+
+  it("cancels loop when strict_instructions=true and warning present", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-m4-strict";
+    startLoop(projectRoot, sessionId, makeConfig({ gates: ["lint"], strict_instructions: true }));
+    const ctx = makeContext(projectRoot, sessionId);
+
+    mockedResolveGateInstructions.mockReturnValueOnce({
+      docPath: null,
+      skills: [],
+      warning: 'No instruction doc or skills configured for gate "lint".',
+      isAsync: false,
+      asyncConfig: null,
+    });
+    await runIdle(ctx);
+
+    const state = createLoopStateController(projectRoot).getState();
+    expect(state?.loop.active).toBe(false);
+    expect(mockedInvokeRunner).not.toHaveBeenCalled();
   });
 });
 
