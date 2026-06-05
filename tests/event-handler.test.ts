@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { DEFAULT_STATE_FILE_PATH } from "../constants.js";
-import type { HarnessConfig, RunnerOutput } from "../types.js";
+import type { HarnessConfig, RunnerOutput, Backlog } from "../types.js";
 
 vi.mock("../runner-invoker.js", () => ({
   invokeRunner: vi.fn(),
@@ -566,6 +566,33 @@ describe("L2: getNextGate — validate next_gate against config.gates", () => {
 
     const state = createLoopStateController(projectRoot).getState();
     expect(state?.loop.current_gate).toBe("in-progress");
+  });
+});
+
+describe("L4: epic complete preserves state (cancelLoop not deleteState)", () => {
+  it("state file still exists after last epic story completes, with story marked completed", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-l4";
+    const config = makeConfig({ gates: ["build"] });
+    const backlog: Backlog = {
+      epic_id: "EP-1",
+      title: "Test Epic",
+      stories: [{ id: "S1", title: "Only story", depends_on: [] }],
+    };
+    createLoopStateController(projectRoot).startLoop(
+      sessionId, config, undefined, undefined, undefined, 0, backlog
+    );
+    const ctx = makeContext(projectRoot, sessionId);
+
+    mockedInvokeRunner.mockResolvedValueOnce(makePassOutput("build", null));
+    await runIdle(ctx);
+
+    const statePath = getStatePath(projectRoot);
+    expect(existsSync(statePath)).toBe(true);
+    const state = createLoopStateController(projectRoot).getState();
+    expect(state?.loop.active).toBe(false);
+    const s1 = state?.loop.epic?.story_progress.find((e) => e.story_id === "S1");
+    expect(s1?.status).toBe("completed");
   });
 });
 

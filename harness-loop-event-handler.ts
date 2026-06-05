@@ -683,7 +683,7 @@ async function handleRunnerOutput(
             `🏆 Epic "${state.loop.epic.epic_id}" complete! ${done}/${total} stories.`,
             "info"
           );
-          controller.completeLoop();
+          controller.cancelLoop();
           await ctx.injectMessage(buildEpicCompletionPrompt(refreshed));
         }
       } else {
@@ -770,7 +770,7 @@ async function handleRunnerOutput(
             `🏆 Epic "${state.loop.epic.epic_id}" complete! ${done}/${total} stories.`,
             "info"
           );
-          controller.completeLoop();
+          controller.cancelLoop();
           await ctx.injectMessage(buildEpicCompletionPrompt(refreshed));
         }
       } else {
