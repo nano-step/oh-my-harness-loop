@@ -61,7 +61,6 @@ function makeState(
     config_snapshot: cfg,
     last_runner_output: null,
     no_progress_count: 0,
-    override_active: false,
     same_error_history: {},
     verification_pending: false,
     parallel_watchers: {},

@@ -568,3 +568,23 @@ describe("L2: getNextGate — validate next_gate against config.gates", () => {
     expect(state?.loop.current_gate).toBe("in-progress");
   });
 });
+
+describe("L3: premature promise — increment iteration counters", () => {
+  it("increments gate_iteration and total_iteration when completion promise emitted prematurely", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-l3";
+    startLoop(projectRoot, sessionId, makeConfig());
+    const messages = [
+      { role: "assistant", content: "<promise>HARNESS-COMPLETE</promise> I'm done!" },
+    ];
+    const ctx = makeContext(projectRoot, sessionId, messages);
+
+    await runIdle(ctx);
+
+    const state = createLoopStateController(projectRoot).getState();
+    expect(state?.loop.gate_iteration).toBe(2);
+    expect(state?.loop.total_iteration).toBe(2);
+    expect(mockedInvokeRunner).not.toHaveBeenCalled();
+    expect(ctx.injectMessage).toHaveBeenCalled();
+  });
+});

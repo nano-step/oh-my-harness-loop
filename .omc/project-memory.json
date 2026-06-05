@@ -1,0 +1,320 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1780678340964,
+  "projectRoot": "/Users/tamlh/workspaces/self/AI/Tools/oh-my-harness-loop-plugin",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "vitest",
+        "version": "2.0.0",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npx vitest run 2>&1 | tail -15",
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {
+      "build": "tsc",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "typecheck": "tsc --noEmit",
+      "postinstall": "node ./scripts/postinstall.js"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": "*.test.ts",
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "scripts",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "ai": {
+      "path": "ai",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1780678340899,
+      "keyFiles": []
+    },
+    "commands": {
+      "path": "commands",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1780678340901,
+      "keyFiles": [
+        "harness-check.ts",
+        "harness-init.ts",
+        "harness-off.ts",
+        "harness-on.ts",
+        "harness-team.ts"
+      ]
+    },
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 68,
+      "lastAccessed": 1780678340929,
+      "keyFiles": [
+        "async-watcher-result-handler.d.ts",
+        "async-watcher-result-handler.d.ts.map",
+        "async-watcher-result-handler.js",
+        "async-watcher-result-handler.js.map",
+        "async-watcher-spawner.d.ts"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 6,
+      "lastAccessed": 1780678340930,
+      "keyFiles": [
+        "FEATURE_INTAKE.md",
+        "GETTING_STARTED.md",
+        "HARNESS.md",
+        "HARNESS_BACKLOG.md",
+        "KNOWN_ISSUES.md"
+      ]
+    },
+    "openspec": {
+      "path": "openspec",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1780678340931,
+      "keyFiles": [
+        "config.yaml"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 2,
+      "lastAccessed": 1780678340932,
+      "keyFiles": [
+        "harness-check.sh",
+        "postinstall.js"
+      ]
+    },
+    "skills": {
+      "path": "skills",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1780678340932,
+      "keyFiles": []
+    },
+    "templates": {
+      "path": "templates",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1780678340940,
+      "keyFiles": [
+        "continuation-prompt.ts",
+        "epic-completion-prompt.ts",
+        "epic-story-prompt.ts",
+        "opening-prompt.ts",
+        "ultrawork-verification.ts"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 17,
+      "lastAccessed": 1780678340941,
+      "keyFiles": [
+        "async-watcher-spawner.test.ts",
+        "commands.test.ts",
+        "completion-detector.test.ts",
+        "config-loader.test.ts",
+        "continuation-prompt-builder.test.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "harness-loop-event-handler.ts",
+      "accessCount": 52,
+      "lastAccessed": 1780679295469,
+      "type": "file"
+    },
+    {
+      "path": "scripts/postinstall.js",
+      "accessCount": 38,
+      "lastAccessed": 1780630680683,
+      "type": "file"
+    },
+    {
+      "path": "loop-state-controller.ts",
+      "accessCount": 30,
+      "lastAccessed": 1780679290669,
+      "type": "file"
+    },
+    {
+      "path": "storage.ts",
+      "accessCount": 19,
+      "lastAccessed": 1780679297073,
+      "type": "file"
+    },
+    {
+      "path": "completion-detector.ts",
+      "accessCount": 18,
+      "lastAccessed": 1780678907225,
+      "type": "file"
+    },
+    {
+      "path": "tests/event-handler.test.ts",
+      "accessCount": 12,
+      "lastAccessed": 1780679229401,
+      "type": "file"
+    },
+    {
+      "path": "runner-invoker.ts",
+      "accessCount": 11,
+      "lastAccessed": 1780678677868,
+      "type": "file"
+    },
+    {
+      "path": "constants.ts",
+      "accessCount": 8,
+      "lastAccessed": 1780678901825,
+      "type": "file"
+    },
+    {
+      "path": "config-loader.ts",
+      "accessCount": 7,
+      "lastAccessed": 1780653164249,
+      "type": "file"
+    },
+    {
+      "path": "scripts/harness-check.sh",
+      "accessCount": 5,
+      "lastAccessed": 1780652119189,
+      "type": "file"
+    },
+    {
+      "path": "commands/harness-on.ts",
+      "accessCount": 3,
+      "lastAccessed": 1780652828823,
+      "type": "file"
+    },
+    {
+      "path": "tests/completion-detector.test.ts",
+      "accessCount": 3,
+      "lastAccessed": 1780678904784,
+      "type": "file"
+    },
+    {
+      "path": "types.ts",
+      "accessCount": 3,
+      "lastAccessed": 1780679282483,
+      "type": "file"
+    },
+    {
+      "path": "docs/SETUP_INSTRUCTIONS_FOR_AGENT.md",
+      "accessCount": 2,
+      "lastAccessed": 1780627392586,
+      "type": "file"
+    },
+    {
+      "path": "templates/continuation-prompt.ts",
+      "accessCount": 2,
+      "lastAccessed": 1780629128732,
+      "type": "file"
+    },
+    {
+      "path": "index.ts",
+      "accessCount": 2,
+      "lastAccessed": 1780644169519,
+      "type": "file"
+    },
+    {
+      "path": "tests/postinstall.test.ts",
+      "accessCount": 2,
+      "lastAccessed": 1780653634060,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 2,
+      "lastAccessed": 1780655214019,
+      "type": "file"
+    },
+    {
+      "path": "async-watcher-spawner.ts",
+      "accessCount": 1,
+      "lastAccessed": 1780627438558,
+      "type": "file"
+    },
+    {
+      "path": ".opencode/commands/harness-on.md",
+      "accessCount": 1,
+      "lastAccessed": 1780643462307,
+      "type": "file"
+    },
+    {
+      "path": "gate-instructions-resolver.ts",
+      "accessCount": 1,
+      "lastAccessed": 1780650733545,
+      "type": "file"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-06-05-fix-issue-34-enforcement-gaps.md",
+      "accessCount": 1,
+      "lastAccessed": 1780652721920,
+      "type": "file"
+    },
+    {
+      "path": "tests/commands.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1780653357486,
+      "type": "file"
+    },
+    {
+      "path": "tests/parallel-gate.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1780653646125,
+      "type": "file"
+    },
+    {
+      "path": "commands/harness-check.ts",
+      "accessCount": 1,
+      "lastAccessed": 1780678663706,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

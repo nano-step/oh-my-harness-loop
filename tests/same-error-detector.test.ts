@@ -40,7 +40,6 @@ function makeState(
       },
       last_runner_output: null,
       no_progress_count: 0,
-      override_active: false,
       same_error_history: history,
       verification_pending: false,
       parallel_watchers: {},

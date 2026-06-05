@@ -346,6 +346,8 @@ async function processLoopIteration(
 
   if (completion.liedAboutCompletion) {
     const lastGate = config.gates[config.gates.length - 1];
+    controller.incrementGateIteration();
+    controller.incrementTotalIteration();
     ctx.showToast(
       `⚠️ Premature <promise>${config.completion_promise}</promise> rejected: ${completion.lieReason}`,
       "warning"
@@ -358,7 +360,6 @@ async function processLoopIteration(
 
   const override = detectOverrideToken(messages.slice(state.loop.message_count_at_start));
   if (override.found) {
-    controller.setOverrideActive(true);
     controller.cancelLoop();
     ctx.showToast(
       `⏸️ Loop paused by override: ${override.reason ?? "user requested"}`,
