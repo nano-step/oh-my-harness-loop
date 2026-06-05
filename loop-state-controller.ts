@@ -4,6 +4,7 @@ import {
   clearLoopBlock,
   createInitialState,
   getStatePath,
+  deleteState,
 } from "./storage.js";
 import {
   SAME_ERROR_HISTORY_WINDOW,
@@ -43,6 +44,7 @@ export interface LoopStateController {
     epicBacklog?: Backlog
   ): HarnessLoopState;
   cancelLoop(opts?: { clean?: boolean }): void;
+  completeLoop(): void;
   completeStoryAndAdvance(): { nextStoryId: string } | null;
   pauseEpicForFailure(reason: string): void;
   incrementGateIteration(): void;
@@ -165,6 +167,10 @@ export function createLoopStateController(
 
   function cancelLoop(opts?: { clean?: boolean }): void {
     clearLoopBlock(statePath, opts);
+  }
+
+  function completeLoop(): void {
+    deleteState(statePath);
   }
 
   function updateLoop(updater: (loop: LoopMeta) => void): void {
@@ -395,6 +401,7 @@ export function createLoopStateController(
     isActive,
     startLoop,
     cancelLoop,
+    completeLoop,
     completeStoryAndAdvance,
     pauseEpicForFailure,
     incrementGateIteration,

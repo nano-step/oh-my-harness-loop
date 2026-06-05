@@ -57,6 +57,12 @@ export function stateExists(statePath: string): boolean {
   return existsSync(statePath);
 }
 
+export function deleteState(statePath: string): void {
+  if (existsSync(statePath)) {
+    unlinkSync(statePath);
+  }
+}
+
 export function readState(statePath: string): HarnessLoopState | null {
   if (!existsSync(statePath)) {
     return null;
