@@ -58,7 +58,6 @@ export interface LoopStateController {
   setVerificationPending(pending: boolean): void;
   setWatcherTaskId(taskId: string | null): void;
   clearWatcherTaskId(): void;
-  setOverrideActive(active: boolean): void;
   rebindSession(newSessionId: string): void;
 }
 
@@ -125,7 +124,6 @@ export function createLoopStateController(
       config_snapshot: config,
       last_runner_output: null,
       no_progress_count: 0,
-      override_active: false,
       same_error_history: {},
       verification_pending: false,
       parallel_watchers: {},
@@ -301,12 +299,6 @@ export function createLoopStateController(
     });
   }
 
-  function setOverrideActive(active: boolean): void {
-    updateLoop((loop) => {
-      loop.override_active = active;
-    });
-  }
-
   function rebindSession(newSessionId: string): void {
     updateLoop((loop) => {
       loop.session_id = newSessionId;
@@ -416,7 +408,6 @@ export function createLoopStateController(
     setVerificationPending,
     setWatcherTaskId,
     clearWatcherTaskId,
-    setOverrideActive,
     rebindSession,
   };
 }

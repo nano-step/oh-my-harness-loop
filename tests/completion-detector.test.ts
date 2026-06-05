@@ -40,7 +40,6 @@ function makeState(overrides: Partial<HarnessLoopState["loop"]> = {}): HarnessLo
     config_snapshot: makeConfig(),
     last_runner_output: null,
     no_progress_count: 0,
-    override_active: false,
     same_error_history: {},
     verification_pending: false,
     parallel_watchers: {},
@@ -85,7 +84,6 @@ function makeStateAtLastGateAllPassed(): HarnessLoopState {
         rule_ids_violated: [],
       },
       no_progress_count: 0,
-      override_active: false,
       same_error_history: {},
       verification_pending: false,
       parallel_watchers: {},
@@ -293,16 +291,17 @@ describe("detectOverrideToken", () => {
     expect(result.reason).toBeNull();
   });
 
-  it("only checks the last assistant message", () => {
+  it("finds override token in any assistant message, not just the last", () => {
     const messages = [
-      { role: "assistant", content: "[HARNESS-OVERRIDE]: old override" },
+      { role: "assistant", content: "[HARNESS-OVERRIDE]: earlier override" },
       { role: "user", content: "ok" },
       { role: "assistant", content: "No override here." },
     ];
 
     const result = detectOverrideToken(messages);
 
-    expect(result.found).toBe(false);
+    expect(result.found).toBe(true);
+    expect(result.reason).toBe("earlier override");
   });
 
   it("returns found=false when message list is empty", () => {
@@ -310,5 +309,27 @@ describe("detectOverrideToken", () => {
 
     expect(result.found).toBe(false);
     expect(result.reason).toBeNull();
+  });
+});
+
+describe("L1: detectOverrideToken — inline match + all-message scan", () => {
+  it("matches override token inline (not just at start of line)", () => {
+    const messages = [
+      { role: "assistant", content: "Note: [HARNESS-OVERRIDE]: blocked by external dependency" },
+    ];
+    const result = detectOverrideToken(messages);
+    expect(result.found).toBe(true);
+    expect(result.reason).toBe("blocked by external dependency");
+  });
+
+  it("finds override in an earlier assistant message, not just the last one", () => {
+    const messages = [
+      { role: "assistant", content: "[HARNESS-OVERRIDE]: api is down" },
+      { role: "user", content: "ok" },
+      { role: "assistant", content: "Continuing work..." },
+    ];
+    const result = detectOverrideToken(messages);
+    expect(result.found).toBe(true);
+    expect(result.reason).toBe("api is down");
   });
 });

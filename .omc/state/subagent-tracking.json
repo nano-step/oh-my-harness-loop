@@ -1,0 +1,134 @@
+{
+  "agents": [
+    {
+      "agent_id": "a4d33783d00c5fd69",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:54:28.840Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T16:55:43.188Z",
+      "duration_ms": 74348
+    },
+    {
+      "agent_id": "a7cfca49c22209a86",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:54:32.756Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T16:55:24.431Z",
+      "duration_ms": 51675
+    },
+    {
+      "agent_id": "aa7e7525cb02f7d29",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:54:36.752Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T16:55:31.223Z",
+      "duration_ms": 54471
+    },
+    {
+      "agent_id": "a0804f9a558ee1a13",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:54:41.706Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T16:56:11.636Z",
+      "duration_ms": 89930
+    },
+    {
+      "agent_id": "a6d71aaa24b82093f",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:57:14.603Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T17:00:07.777Z",
+      "duration_ms": 173174
+    },
+    {
+      "agent_id": "a8718d4f5aaf3867d",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:57:24.020Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T17:00:27.637Z",
+      "duration_ms": 183617
+    },
+    {
+      "agent_id": "a662f0f54d7337f6f",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:57:28.544Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T17:00:42.685Z",
+      "duration_ms": 194141
+    },
+    {
+      "agent_id": "a9819ab1611ecb64a",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:57:33.885Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T16:59:13.711Z",
+      "duration_ms": 99826
+    },
+    {
+      "agent_id": "af53c4cca932ca324",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:57:36.622Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T17:00:33.478Z",
+      "duration_ms": 176856
+    },
+    {
+      "agent_id": "a6b5a7dc1088ec896",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:57:40.703Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T16:59:00.427Z",
+      "duration_ms": 79724
+    },
+    {
+      "agent_id": "af4c6f44b40a20323",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T16:57:44.573Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T16:59:34.256Z",
+      "duration_ms": 109683
+    },
+    {
+      "agent_id": "afae7a086a57b59f2",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T17:01:26.863Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T17:02:16.883Z",
+      "duration_ms": 50020
+    },
+    {
+      "agent_id": "a6e4953d1e61b2d2e",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T17:01:33.578Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T17:03:31.955Z",
+      "duration_ms": 118377
+    },
+    {
+      "agent_id": "aa19051bc9d8a8381",
+      "agent_type": "general-purpose",
+      "started_at": "2026-06-05T17:01:37.659Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-05T17:02:04.518Z",
+      "duration_ms": 26859
+    }
+  ],
+  "total_spawned": 14,
+  "total_completed": 119,
+  "total_failed": 0,
+  "last_updated": "2026-06-05T17:03:32.057Z"
+}

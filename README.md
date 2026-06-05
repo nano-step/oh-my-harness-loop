@@ -43,6 +43,200 @@ Then:
 
 The templates ship with a **no-op stub runner** (every gate returns PASS). Edit `scripts/harness-check.sh` and `docs/harness/gates/*.md` to wire your real checks (tsc, vitest, lint, etc.).
 
+## How It Works
+
+The harness loop hooks into OpenCode's `session.idle` event. Every time the agent goes quiet, the plugin checks whether a loop is active and, if so, runs the configured runner script against the current gate.
+
+### Main Loop Lifecycle
+
+```mermaid
+flowchart TD
+    A([session.idle fires]) --> B{Loop active?}
+    B -- No --> Z([Do nothing])
+    B -- Yes --> C[Run runner script\nagainst current gate]
+    C --> D{Runner output}
+    D -- PASS --> E{More gates?}
+    E -- Yes --> F[Advance to next gate\nreset gate_iteration]
+    E -- No --> G([Loop complete ✅\nstate cleaned up])
+    D -- SKIP --> E
+    D -- FAIL --> H{fail_policy}
+    H -- auto --> I[Inject fix prompt\nincrement iteration]
+    H -- "hybrid, attempts left" --> I
+    H -- "hybrid, exhausted" --> J[Ask user for input\npause loop]
+    H -- ask --> J
+    D -- BLOCKED --> K([Cancel loop ⛔\npreserve state])
+    D -- ERROR --> K
+    D -- WAITING --> L[Spawn background watcher\nwait for external signal]
+    L -- watcher resolves --> C
+    I --> M([Wait for next\nsession.idle])
+    J --> M
+    F --> M
+```
+
+### Gate Status Reference
+
+| Status | Meaning | Loop action |
+|--------|---------|-------------|
+| `PASS` | Gate criteria met | Advance to next gate (or complete loop) |
+| `FAIL` | Gate criteria not met, fixable | Re-run after agent fixes, per `fail_policy` |
+| `SKIP` | Gate not applicable right now | Advance to next gate |
+| `BLOCKED` | Manual intervention required | Cancel loop, show error toast |
+| `ERROR` | Runner crashed or timed out | Cancel loop, show error toast |
+| `WAITING` | External event pending (CI, deploy) | Spawn async watcher; resume when done |
+
+### fail_policy Comparison
+
+```mermaid
+flowchart LR
+    FAIL([Gate returns FAIL])
+    FAIL --> auto & hybrid & ask
+
+    auto["`**auto**
+    Always inject fix prompt.
+    Never pauses for human input.
+    Best for fully automated pipelines.`"]
+
+    hybrid["`**hybrid** *(default)*
+    Auto-fix up to auto_fix_attempts times.
+    Then pause and ask user.
+    Balanced — tries hard before escalating.`"]
+
+    ask["`**ask**
+    Always pause and show the error.
+    Never auto-fixes.
+    Best when fixes require human judgment.`"]
+```
+
+### Async Gate Flow
+
+When a gate has `"async": true` the loop spawns a background watcher instead of blocking inline:
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Plugin
+    participant Runner
+    participant Watcher
+
+    Agent->>Plugin: session.idle
+    Plugin->>Runner: run gate
+    Runner-->>Plugin: WAITING
+    Plugin->>Watcher: spawn background task
+    Note over Plugin,Watcher: loop pauses; agent stays idle
+    loop poll every async_poll_interval_seconds
+        Watcher->>Runner: check status
+    end
+    Runner-->>Watcher: resolved
+    Watcher-->>Plugin: result ready
+    Plugin->>Agent: inject continuation prompt
+```
+
+---
+
+## Scenarios
+
+The loop lifecycle above is fixed. What changes is your **configuration** — `fail_policy`, gate count, async gates, strict mode, and epic mode all produce different behaviors. Here are four common setups.
+
+### Scenario A — Simple 3-gate project
+
+**Config:**
+```json
+{
+  "runner_path": "./scripts/harness-check.sh",
+  "gates": ["pre-work", "in-progress", "pre-merge"],
+  "fail_policy": "hybrid",
+  "auto_fix_attempts": 3
+}
+```
+
+**Session trace:**
+```
+/harness-on
+  → runner: pre-work    PASS
+  → runner: in-progress FAIL  (TypeScript errors in 2 files)
+  → agent auto-fixes (attempt 1 of 3)
+  → runner: in-progress FAIL  (1 error remains)
+  → agent auto-fixes (attempt 2 of 3)
+  → runner: in-progress PASS
+  → runner: pre-merge   PASS
+  → loop complete ✅
+```
+
+The agent iterates on `in-progress` automatically. If it had exhausted all 3 attempts, the loop would pause and ask what to do.
+
+---
+
+### Scenario B — Async CI gate
+
+**Config:**
+```json
+{
+  "gates": ["pre-merge", "ci-green", "release"],
+  "gate_instructions": {
+    "ci-green": {
+      "async": true,
+      "async_max_wait_seconds": 1800,
+      "async_poll_interval_seconds": 60
+    }
+  }
+}
+```
+
+**Session trace:**
+```
+/harness-on
+  → runner: pre-merge PASS
+  → runner: ci-green  WAITING  (CI just triggered)
+  → plugin spawns background watcher, polls every 60s
+  → ... 4 minutes later: CI passes
+  → plugin wakes loop, merges result
+  → runner: release   PASS
+  → loop complete ✅
+```
+
+The agent never blocks while CI runs. The watcher wakes the loop when the external signal arrives.
+
+---
+
+### Scenario C — Epic mode (multi-story backlog)
+
+**Backlog:** `harness.epic.json` with stories `S-1`, `S-2 depends_on S-1`, `S-3`.
+
+**Session trace:**
+```
+/harness-on --epic
+  → topo-sort resolves: S-1 → S-2 → S-3
+  → full gate cycle for S-1 → complete, advance
+  → full gate cycle for S-2 → complete, advance
+  → full gate cycle for S-3 → complete
+  → epic complete ✅  (state file preserved for audit)
+```
+
+If a story exhausts `max_iterations_per_gate`, the epic pauses and waits for `/harness-on --epic --resume` after you intervene manually.
+
+---
+
+### Scenario D — Strict gate docs
+
+**Config:**
+```json
+{
+  "strict_instructions": true,
+  "gate_instructions": {
+    "pre-merge": { "doc": "docs/harness/gates/pre-merge.md" }
+  }
+}
+```
+
+Every gate must have a configured doc or skill. On entry to a gate with no doc:
+
+- `strict_instructions: false` *(default)* — warning toast shown, loop continues
+- `strict_instructions: true` — error toast shown, loop cancelled immediately
+
+Wire up your gate docs first, then enable strict mode to prevent the agent from running gates blind.
+
+---
+
 ## What's New in v1.1.0
 
 In v1.0 the package drove work through quality gates. In v1.1 it also designs the team that does the work.

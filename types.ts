@@ -251,7 +251,6 @@ export interface LoopMeta {
   config_snapshot: ConfigSnapshot;
   last_runner_output: RunnerOutput | null;
   no_progress_count: number;
-  override_active: boolean;
   same_error_history: Record<string, string[][]>;
   verification_pending: boolean;
   parallel_watchers: Record<string, ParallelWatcherEntry>;
@@ -286,7 +285,6 @@ export const LoopMetaSchema = z.object({
   config_snapshot: HarnessConfigSchema,
   last_runner_output: RunnerOutputSchema.nullable(),
   no_progress_count: z.number(),
-  override_active: z.boolean(),
   same_error_history: z.record(z.string(), z.array(z.array(z.string()))),
   verification_pending: z.boolean(),
   parallel_watchers: z.record(z.string(), ParallelWatcherEntrySchema),

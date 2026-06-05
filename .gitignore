@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.local.json
 .opencode/harness.override.json
+.omc/
+.serena/
+ai/
+docs/superpowers/
