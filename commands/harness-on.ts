@@ -137,6 +137,21 @@ export async function handleHarnessOn(
     );
   }
 
+  // Reject gates using async/parallel — subsystems not wired in production
+  const unsupportedGates: string[] = [];
+  for (const gate of config.gates) {
+    const gi = config.gate_instructions[gate];
+    if (gi?.async === true) unsupportedGates.push(`${gate}(async)`);
+    else if (Array.isArray(gi?.parallel) && gi.parallel.length > 0) unsupportedGates.push(`${gate}(parallel)`);
+  }
+  if (unsupportedGates.length > 0) {
+    ctx.showToast(
+      `❌ Gates with async/parallel config are not supported: ${unsupportedGates.join(", ")}. Remove async/parallel from gate_instructions to use this gate.`,
+      "error"
+    );
+    return;
+  }
+
   const controller = createLoopStateController(ctx.projectRoot);
 
   if (options.epic) {
@@ -279,6 +294,11 @@ export async function handleHarnessOn(
     }
 
     if (options.restart) {
+      const switching =
+        e.existingFeatureId !== null &&
+        options.featureId !== undefined &&
+        options.featureId !== e.existingFeatureId;
+
       controller.cancelLoop();
 
       const messageCount = ctx.getMessageCount();
@@ -292,7 +312,9 @@ export async function handleHarnessOn(
       );
 
       ctx.showToast(
-        `🚀 Harness loop restarted with ${config.gates.length} gates`,
+        switching
+          ? `🔀 Switched from feature "${e.existingFeatureId}" → "${options.featureId}" (${config.gates.length} gates)`
+          : `🚀 Harness loop restarted with ${config.gates.length} gates`,
         "info"
       );
 
@@ -304,8 +326,15 @@ export async function handleHarnessOn(
       return;
     }
 
+    const isSwitching =
+      options.featureId !== undefined &&
+      e.existingFeatureId !== null &&
+      options.featureId !== e.existingFeatureId;
+
     ctx.showToast(
-      `❌ Loop already active in session ${e.existingSessionId} at gate "${e.existingGate}". Run /harness-on --resume to continue, or /harness-on --restart to wipe and start fresh.`,
+      isSwitching
+        ? `❌ Harness active for feature "${e.existingFeatureId}" at gate "${e.existingGate}". To switch: /harness-on --feature=${options.featureId} --restart`
+        : `❌ Loop already active at gate "${e.existingGate}". Run /harness-on --resume to rebind, or /harness-on --restart to cancel and start fresh.`,
       "error"
     );
   }

@@ -188,3 +188,47 @@ describe("cancelLoop", () => {
     expect(state.loop.same_error_history["pre-work"]).toEqual([["R1", "R2", "R3"]]);
   });
 });
+
+describe("M5: pauseEpicForFailure clears stale loop fields", () => {
+  function makeEpicBacklog() {
+    return {
+      epic_id: "epic-1",
+      stories: [
+        { id: "story-1", title: "First story", depends_on: [] },
+        { id: "story-2", title: "Second story", depends_on: [] },
+      ],
+    };
+  }
+
+  it("resets session_id and gate_iteration after epic story failure", () => {
+    const root = makeTempRoot();
+    roots.push(root);
+    const ctrl = createLoopStateController(root);
+    const config = makeConfig(["pre-work", "in-progress"]);
+
+    ctrl.startLoop("sess-epic", config, undefined, undefined, undefined, 0, makeEpicBacklog());
+
+    ctrl.pauseEpicForFailure("gate hard fail");
+
+    const state = ctrl.getState();
+    expect(state?.loop.active).toBe(false);
+    expect(state?.loop.session_id).toBe("");
+    expect(state?.loop.gate_iteration).toBe(0);
+  });
+
+  it("preserves epic state (story_progress and current_story_id) after failure", () => {
+    const root = makeTempRoot();
+    roots.push(root);
+    const ctrl = createLoopStateController(root);
+    const config = makeConfig(["pre-work", "in-progress"]);
+
+    ctrl.startLoop("sess-epic", config, undefined, undefined, undefined, 0, makeEpicBacklog());
+    ctrl.pauseEpicForFailure("test failure");
+
+    const state = ctrl.getState();
+    expect(state?.loop.epic).toBeDefined();
+    expect(state?.loop.epic?.epic_id).toBe("epic-1");
+    const entry = state?.loop.epic?.story_progress.find((e) => e.story_id === "story-1");
+    expect(entry?.status).toBe("failed");
+  });
+});

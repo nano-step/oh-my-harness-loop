@@ -589,8 +589,7 @@ describe("parallel gate — no-parallel key", () => {
 
     expect(mockedRunner).toHaveBeenCalledOnce();
     expect(ctx.spawnWatcher).not.toHaveBeenCalled();
-    const state = readState(getStatePath(projectRoot))!;
-    expect(state.loop.active).toBe(false);
+    expect(readState(getStatePath(projectRoot))).toBeNull();
   });
 });
 

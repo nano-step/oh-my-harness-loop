@@ -124,3 +124,42 @@ describe("loadConfig", () => {
     );
   });
 });
+
+describe("M3: override file preserved on schema validation failure", () => {
+  it("preserves override file when merged config fails schema validation", () => {
+    const dir = makeTempDir();
+    dirs.push(dir);
+    writeConfig(dir, {
+      runner_path: "./scripts/harness-check.sh",
+      gates: ["pre-work"],
+    });
+    const overridePath = join(dir, ".opencode", "harness.override.json");
+    writeFileSync(
+      overridePath,
+      JSON.stringify({ gates: [] }),
+      "utf-8"
+    );
+
+    expect(() => loadConfig(dir)).toThrow(HarnessConfigError);
+    expect(existsSync(overridePath)).toBe(true);
+  });
+
+  it("deletes override file when merged config passes schema validation", () => {
+    const dir = makeTempDir();
+    dirs.push(dir);
+    writeConfig(dir, {
+      runner_path: "./scripts/harness-check.sh",
+      gates: ["pre-work"],
+    });
+    const overridePath = join(dir, ".opencode", "harness.override.json");
+    writeFileSync(
+      overridePath,
+      JSON.stringify({ max_total_iterations: 50 }),
+      "utf-8"
+    );
+
+    const result = loadConfig(dir);
+    expect(result.config.max_total_iterations).toBe(50);
+    expect(existsSync(overridePath)).toBe(false);
+  });
+});

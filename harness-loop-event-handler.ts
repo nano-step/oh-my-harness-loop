@@ -50,6 +50,7 @@ export interface PluginContext {
 
 const inFlightSessions = new Map<string, Promise<void>>();
 const runtimeRetried = new Map<string, number>();
+const zombieHintedSessions = new Set<string>();
 
 interface HeartbeatHandle {
   stop(): void;
@@ -270,6 +271,13 @@ export async function handleSessionIdle(ctx: PluginContext): Promise<void> {
   }
 
   if (state.loop.session_id !== ctx.sessionId) {
+    if (!zombieHintedSessions.has(ctx.sessionId)) {
+      zombieHintedSessions.add(ctx.sessionId);
+      ctx.showToast(
+        `⚠️ Harness loop active (session "${state.loop.session_id}" at gate "${state.loop.current_gate}"). Run /harness-on --resume to take over this session.`,
+        "warning"
+      );
+    }
     return;
   }
 
@@ -356,6 +364,25 @@ async function processLoopIteration(
       `⏸️ Loop paused by override: ${override.reason ?? "user requested"}`,
       "warning"
     );
+    return;
+  }
+
+  // When verification is pending, scan for VERIFIED before running runner
+  if (state.loop.verification_pending) {
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (lastAssistant?.content.includes("VERIFIED")) {
+      controller.setVerificationPending(false);
+      const nextGate = getNextGate(config, currentGate, state.loop.last_runner_output!);
+      if (nextGate) {
+        controller.transitionToGate(nextGate);
+        ctx.showToast(`✓ Gate "${currentGate}" VERIFIED → ${nextGate}`, "info");
+      } else {
+        controller.completeLoop();
+        ctx.showToast(`🏁 All gates verified and complete`, "info");
+      }
+      return;
+    }
+    await ctx.injectMessage(buildUltraworkVerificationPrompt(currentGate));
     return;
   }
 

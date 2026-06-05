@@ -7,9 +7,10 @@ import {
   writeFileSync,
   mkdirSync,
   rmSync,
+  symlinkSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, dirname } from "node:path";
 
 const testDirs: string[] = [];
 
@@ -181,6 +182,15 @@ describe("postinstall.js", () => {
         "existing",
         "utf-8"
       );
+    }
+
+    // Pre-create the skill symlink so postinstall sees it as a no-op
+    const skillName = "team-architecture-factory";
+    const skillDest = join(tmpDir, ".opencode", "skills", skillName);
+    const skillSource = join(__dirname, "..", "skills", skillName);
+    if (existsSync(skillSource)) {
+      mkdirSync(join(tmpDir, ".opencode", "skills"), { recursive: true });
+      symlinkSync(relative(dirname(skillDest), skillSource), skillDest);
     }
 
     const result = runPostinstall({
