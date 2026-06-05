@@ -553,3 +553,18 @@ describe("handleSessionIdle — zombie loop hint (M2)", () => {
     expect((ctx.showToast as ReturnType<typeof vi.fn>).mock.calls.length).toBe(firstCallCount);
   });
 });
+
+describe("L2: getNextGate — validate next_gate against config.gates", () => {
+  it("ignores unknown next_gate from runner and uses index-based fallback", async () => {
+    const projectRoot = makeProjectRoot();
+    const sessionId = "sess-l2";
+    startLoop(projectRoot, sessionId, makeConfig({ gates: ["pre-work", "in-progress"] }));
+    const ctx = makeContext(projectRoot, sessionId);
+
+    mockedInvokeRunner.mockResolvedValueOnce(makePassOutput("pre-work", "totally-unknown-gate"));
+    await runIdle(ctx);
+
+    const state = createLoopStateController(projectRoot).getState();
+    expect(state?.loop.current_gate).toBe("in-progress");
+  });
+});

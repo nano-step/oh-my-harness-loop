@@ -117,7 +117,7 @@ function getNextGate(
   currentGate: string,
   runnerOutput: RunnerOutput | null
 ): string | null {
-  if (runnerOutput?.next_gate) {
+  if (runnerOutput?.next_gate && config.gates.includes(runnerOutput.next_gate)) {
     return runnerOutput.next_gate;
   }
 
@@ -356,7 +356,7 @@ async function processLoopIteration(
     return;
   }
 
-  const override = detectOverrideToken(messages);
+  const override = detectOverrideToken(messages.slice(state.loop.message_count_at_start));
   if (override.found) {
     controller.setOverrideActive(true);
     controller.cancelLoop();
