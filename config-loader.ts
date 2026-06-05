@@ -96,8 +96,6 @@ export function loadConfig(
       const overrideConfig = readJsonFile(overridePath);
       merged = mergeConfigs(merged, overrideConfig as Partial<HarnessConfig>);
       overrideConsumed = true;
-
-      unlinkSync(overridePath);
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw new HarnessConfigError(
@@ -122,6 +120,10 @@ export function loadConfig(
       `Invalid harness config:\n${fieldErrors}`,
       parseResult.error
     );
+  }
+
+  if (overrideConsumed) {
+    unlinkSync(overridePath);
   }
 
   const config = parseResult.data;
