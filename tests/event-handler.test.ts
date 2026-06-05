@@ -473,3 +473,84 @@ describe("handleSessionIdle — BUG H1: concurrent calls serialize", () => {
     expect(mockedInvokeRunner).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("handleSessionIdle — ultrawork VERIFIED detection (C2)", () => {
+  it("advances gate when latest assistant message contains VERIFIED", async () => {
+    const projectRoot = makeProjectRoot();
+    const config = makeConfig({
+      gates: ["lint", "test"],
+      ultrawork_verify_gates: ["lint"],
+    });
+    const sessionId = `s-verified-${randomUUID()}`;
+    startLoop(projectRoot, sessionId, config);
+
+    // Manually set verification_pending
+    const ctrl = createLoopStateController(projectRoot);
+    ctrl.setVerificationPending(true);
+
+    const messages = [
+      { role: "user", content: "please check" },
+      { role: "assistant", content: "I have reviewed everything. VERIFIED" },
+    ];
+    const ctx = makeContext(projectRoot, sessionId, messages);
+
+    // Runner should not be called — gate advances from VERIFIED path
+    mockedInvokeRunner.mockResolvedValue(makePassOutput("lint", "test"));
+
+    await runIdle(ctx);
+
+    const state = createLoopStateController(projectRoot).getState()!;
+    expect(state.loop.verification_pending).toBe(false);
+    expect(state.loop.current_gate).toBe("test");
+    expect(mockedInvokeRunner).not.toHaveBeenCalled();
+  });
+
+  it("re-injects verification prompt when VERIFIED not in latest assistant message", async () => {
+    const projectRoot = makeProjectRoot();
+    const config = makeConfig({
+      gates: ["lint", "test"],
+      ultrawork_verify_gates: ["lint"],
+    });
+    const sessionId = `s-notverified-${randomUUID()}`;
+    startLoop(projectRoot, sessionId, config);
+
+    const ctrl = createLoopStateController(projectRoot);
+    ctrl.setVerificationPending(true);
+
+    const messages = [
+      { role: "assistant", content: "I think I am done but have not said the magic word." },
+    ];
+    const ctx = makeContext(projectRoot, sessionId, messages);
+
+    await runIdle(ctx);
+
+    const state = createLoopStateController(projectRoot).getState()!;
+    expect(state.loop.verification_pending).toBe(true);   // still pending
+    expect(state.loop.current_gate).toBe("lint");         // not advanced
+    expect(ctx.injectMessage).toHaveBeenCalled();          // re-injected
+    expect(mockedInvokeRunner).not.toHaveBeenCalled();     // runner skipped
+  });
+});
+
+describe("handleSessionIdle — zombie loop hint (M2)", () => {
+  it("shows recovery toast once when active loop belongs to different session", async () => {
+    const projectRoot = makeProjectRoot();
+    const config = makeConfig({ gates: ["lint"] });
+    startLoop(projectRoot, "old-session", config);
+
+    const zombieSessionId = `zombie-${randomUUID()}`;
+    const ctx = makeContext(projectRoot, zombieSessionId);
+
+    await runIdle(ctx);
+
+    expect(ctx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("--resume"),
+      "warning"
+    );
+    const firstCallCount = (ctx.showToast as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // Second idle — no duplicate toast
+    await runIdle(ctx);
+    expect((ctx.showToast as ReturnType<typeof vi.fn>).mock.calls.length).toBe(firstCallCount);
+  });
+});
