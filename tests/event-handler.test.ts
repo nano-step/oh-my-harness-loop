@@ -300,7 +300,7 @@ describe("handleSessionIdle — FAIL then PASS gate transitions", () => {
 
     expect(ctx.showToast).toHaveBeenCalledWith(expect.stringContaining("complete"), "info");
     expect(ctx.injectMessage).toHaveBeenCalledOnce();
-    expect(createLoopStateController(projectRoot).getState()?.loop.active).toBe(false);
+    expect(createLoopStateController(projectRoot).getState()).toBeNull();
   });
 });
 
@@ -330,8 +330,7 @@ describe("handleSessionIdle — 5-iteration simulated loop (task 10.16)", () => 
     mockedInvokeRunner.mockResolvedValueOnce(makePassOutput("pre-merge", null));
     await runIdle(ctx);
 
-    const finalState = createLoopStateController(projectRoot).getState();
-    expect(finalState?.loop.active).toBe(false);
+    expect(createLoopStateController(projectRoot).getState()).toBeNull();
     expect(ctx.showToast).toHaveBeenCalledWith(expect.stringContaining("complete"), "info");
     expect(ctx.injectMessage).toHaveBeenCalled();
   });
