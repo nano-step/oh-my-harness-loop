@@ -25,6 +25,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@opencode-ai/plugin": "^1.16.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
@@ -53,5 +54,8 @@
     "harness",
     "ci",
     "development-workflow"
-  ]
+  ],
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.61.1"
+  }
 }

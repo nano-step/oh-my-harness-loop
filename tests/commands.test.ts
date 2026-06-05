@@ -377,7 +377,7 @@ describe("handleHarnessOn — async/parallel gate rejection", () => {
     const ctx = makeOnContext(root, "s1");
     await handleHarnessOn(ctx, []);
     const errorToasts = (ctx.showToast as ReturnType<typeof vi.fn>).mock.calls
-      .filter((c: [string, string]) => c[1] === "error");
+      .filter((c) => c[1] === "error");
     expect(errorToasts).toHaveLength(0);
     expect(createLoopStateController(root).isActive()).toBe(true);
   });
