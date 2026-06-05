@@ -218,8 +218,10 @@ Your runner must:
 | `/harness-init` | Bootstrap harness setup in the current project — copies templates (config, runner stub, gate docs, gitignore entries). Idempotent. |
 | `/harness-check <gate>` | Manually run a single gate via the configured runner. Read-only — does not modify loop state. |
 | `/harness-on` | Start the harness loop. If a loop is already active, emits an error telling you to use `--resume` or `--restart`. |
+| `/harness-on --feature=<id>` | Tag the loop with a feature/issue ID (e.g. `--feature=JIRA-42`). Shown in switching errors so you always know what's blocking. |
 | `/harness-on --resume` | Rebind an existing loop into the current session. Re-runs the current gate from iteration 0 (gates are idempotent). |
-| `/harness-on --restart` | Wipe existing state and start fresh from the first gate. |
+| `/harness-on --restart` | Cancel the active loop and start fresh from the first gate. |
+| `/harness-on --feature=<id> --restart` | **Switch features**: cancel the active loop (any feature) and start a fresh loop for `<id>`. Use this to move to a new issue without running `/harness-off` first. |
 | `/harness-on --force` | Start fresh, ignoring cached gate results. |
 | `/harness-on --epic [path]` | Start epic mode. See [Epic Mode](#epic-mode-v306). |
 | `/harness-on --epic --resume` | Resume preserved epic at the current story. |
