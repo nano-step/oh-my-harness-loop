@@ -183,7 +183,6 @@ export function detectOverrideToken(
       if (match) {
         return { found: true, reason: match[1] ?? null };
       }
-      break;
     }
   }
 
