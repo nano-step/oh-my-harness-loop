@@ -319,3 +319,66 @@ describe("handleHarnessOff — cancel loop", () => {
     expect(cancelFn).toHaveBeenCalledWith("task-xyz");
   });
 });
+
+describe("handleHarnessOn — async/parallel gate rejection", () => {
+  it("rejects config with async:true gate", async () => {
+    const root = makeProjectRoot();
+    writeConfig(root, {
+      gate_instructions: {
+        "pre-work": { async: true },
+        "in-progress": {},
+      },
+    });
+    writeExecutableRunner(root);
+    const ctx = makeOnContext(root, "s1");
+    await handleHarnessOn(ctx, []);
+    expect(ctx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("async"),
+      "error"
+    );
+    expect(ctx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("pre-work"),
+      "error"
+    );
+    expect(createLoopStateController(root).isActive()).toBe(false);
+  });
+
+  it("rejects config with parallel[] gate", async () => {
+    const root = makeProjectRoot();
+    writeConfig(root, {
+      gate_instructions: {
+        "pre-work": {},
+        "in-progress": { parallel: [{ id: "p1" }] },
+      },
+    });
+    writeExecutableRunner(root);
+    const ctx = makeOnContext(root, "s1");
+    await handleHarnessOn(ctx, []);
+    expect(ctx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("parallel"),
+      "error"
+    );
+    expect(ctx.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("in-progress"),
+      "error"
+    );
+    expect(createLoopStateController(root).isActive()).toBe(false);
+  });
+
+  it("allows normal gates with no async/parallel", async () => {
+    const root = makeProjectRoot();
+    writeConfig(root, {
+      gate_instructions: {
+        "pre-work": { skills: [] },
+        "in-progress": { doc: "docs/x.md" },
+      },
+    });
+    writeExecutableRunner(root);
+    const ctx = makeOnContext(root, "s1");
+    await handleHarnessOn(ctx, []);
+    const errorToasts = (ctx.showToast as ReturnType<typeof vi.fn>).mock.calls
+      .filter((c: [string, string]) => c[1] === "error");
+    expect(errorToasts).toHaveLength(0);
+    expect(createLoopStateController(root).isActive()).toBe(true);
+  });
+});
