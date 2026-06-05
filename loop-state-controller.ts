@@ -22,7 +22,8 @@ import { DEFAULT_MAX_ITERATIONS_PER_EPIC } from "./constants.js";
 export class LoopAlreadyActiveError extends Error {
   constructor(
     public readonly existingSessionId: string,
-    public readonly existingGate: string
+    public readonly existingGate: string,
+    public readonly existingFeatureId: string | null = null
   ) {
     super(
       `Loop already active in session ${existingSessionId} at gate ${existingGate}`
@@ -90,7 +91,8 @@ export function createLoopStateController(
     if (state?.loop.active) {
       throw new LoopAlreadyActiveError(
         state.loop.session_id,
-        state.loop.current_gate
+        state.loop.current_gate,
+        state.feature_id
       );
     }
 
@@ -392,8 +394,8 @@ export function createLoopStateController(
       entry.status = "failed";
       entry.gate_reached = state.loop.current_gate;
     }
-    state.loop.active = false;
     writeState(statePath, state);
+    clearLoopBlock(statePath);
   }
 
   return {
