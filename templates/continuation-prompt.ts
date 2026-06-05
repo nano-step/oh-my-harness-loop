@@ -168,6 +168,6 @@ export function buildCompletionPrompt(
     buildHeader("LOOP COMPLETE"),
     `🎉 Harness loop complete. ${reason}`,
     "- All work is done — no further action needed for this loop",
-    "- The state file remains for audit; use /harness-on --restart for a new feature",
+    "- The harness state file has been removed — run /harness-on to start the next cycle",
   ].join("\n");
 }

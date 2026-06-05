@@ -327,7 +327,7 @@ async function processLoopIteration(
   );
 
   if (completion.source) {
-    controller.cancelLoop();
+    controller.completeLoop();
     ctx.showToast(
       `🎉 Harness loop complete! (${completion.source})`,
       "info"
@@ -581,7 +581,7 @@ async function processLoopIteration(
       controller.transitionToGate(nextGate);
       ctx.showToast(`✓ Gate "${freshGate}" cached PASS → ${nextGate}`, "info");
     } else {
-      controller.cancelLoop();
+      controller.completeLoop();
       ctx.showToast("🎉 Harness loop complete! (all gates cached PASS)", "info");
       await ctx.injectMessage(buildCompletionPrompt("structural"));
     }
@@ -655,11 +655,11 @@ async function handleRunnerOutput(
             `🏆 Epic "${state.loop.epic.epic_id}" complete! ${done}/${total} stories.`,
             "info"
           );
-          controller.cancelLoop();
+          controller.completeLoop();
           await ctx.injectMessage(buildEpicCompletionPrompt(refreshed));
         }
       } else {
-        controller.cancelLoop();
+        controller.completeLoop();
         ctx.showToast("🎉 Harness loop complete!", "info");
         await ctx.injectMessage(buildCompletionPrompt("structural"));
       }
@@ -742,11 +742,11 @@ async function handleRunnerOutput(
             `🏆 Epic "${state.loop.epic.epic_id}" complete! ${done}/${total} stories.`,
             "info"
           );
-          controller.cancelLoop();
+          controller.completeLoop();
           await ctx.injectMessage(buildEpicCompletionPrompt(refreshed));
         }
       } else {
-        controller.cancelLoop();
+        controller.completeLoop();
         ctx.showToast("🎉 Harness loop complete!", "info");
         await ctx.injectMessage(buildCompletionPrompt("structural"));
       }

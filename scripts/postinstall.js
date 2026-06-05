@@ -150,13 +150,18 @@ try {
     // Compute relative path from symlink location to target
     const relTarget = relative(dirname(skillDest), skillSource);
 
-    if (existsSync(skillDest)) {
-      // If it's already a symlink pointing to the right place, skip
-      const isSymlink = lstatSync(skillDest).isSymbolicLink();
+    // Use lstatSync (does NOT follow symlinks) so we detect dangling symlinks
+    // whose inode exists on disk even though their target is gone.
+    let destStat = null;
+    try { destStat = lstatSync(skillDest); } catch (_) { /* does not exist */ }
+
+    if (destStat) {
+      const isSymlink = destStat.isSymbolicLink();
       if (isSymlink && readlinkSync(skillDest) === relTarget) {
-        // Already correct
+        // Already correct (also covers a previously-dangling symlink that now
+        // points to the right relative target — nothing to do)
       } else if (isSymlink) {
-        // Symlink exists but points elsewhere — update it
+        // Symlink exists (dangling or pointing elsewhere) — replace it
         unlinkSync(skillDest);
         symlinkSync(relTarget, skillDest);
         console.log(
