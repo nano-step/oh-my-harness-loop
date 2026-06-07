@@ -29,7 +29,8 @@ interface AppendEntry {
 
 function resolveTemplatesRoot(): string {
   const here = dirname(fileURLToPath(import.meta.url));
-  return join(here, "..", "templates", "init");
+  // From dist/commands/ → up two levels to package root → templates/init
+  return join(here, "..", "..", "templates", "init");
 }
 
 export async function handleHarnessInit(ctx: HarnessInitContext): Promise<void> {
