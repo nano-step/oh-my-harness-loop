@@ -15,8 +15,15 @@ import { handleHarnessInit, type HarnessInitContext } from "./commands/harness-i
 import { handleHarnessCheck, type HarnessCheckContext } from "./commands/harness-check.js";
 import { handleHarnessTeam, type HarnessTeamContext } from "./commands/harness-team.js";
 import type { HarnessLoopState } from "./types.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const PLUGIN_VERSION = "1.0.0";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PLUGIN_VERSION = JSON.parse(
+  readFileSync(join(__dirname, "..", "package.json"), "utf-8")
+).version as string;
 let versionLogged = false;
 
 async function fetchMessages(
